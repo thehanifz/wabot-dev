@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup WA Gateway</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        body { background-color: #f4f6f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        .setup-card { border: none; border-radius: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); overflow: hidden; }
+        .setup-header { background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); padding: 40px; text-align: center; color: white; }
+        .setup-body { padding: 40px; background: white; }
+        .form-label { font-weight: 600; color: #334155; font-size: 0.9rem; }
+        .form-control { border-radius: 8px; padding: 12px; border: 1px solid #cbd5e1; }
+        .form-control:focus { border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1); }
+        .btn-primary { background-color: #2563eb; border: none; padding: 12px 24px; border-radius: 8px; font-weight: 600; width: 100%; transition: all 0.2s; }
+        .btn-primary:hover { background-color: #1d4ed8; transform: translateY(-1px); }
+        .step-indicator { display: flex; justify-content: center; margin-bottom: 30px; }
+        .step-dot { width: 10px; height: 10px; background-color: #e2e8f0; border-radius: 50%; margin: 0 5px; }
+        .step-dot.active { background-color: #2563eb; transform: scale(1.2); }
+    </style>
+</head>
+<body>
+    <div class="container d-flex align-items-center justify-content-center min-vh-100 py-5">
+        <div class="col-md-6 col-lg-5">
+            <div class="setup-card">
+                <div class="setup-header">
+                    <i class="fab fa-whatsapp fa-3x mb-3"></i>
+                    <h3 class="mb-1">WA Gateway Setup</h3>
+                    <p class="opacity-75 mb-0">Konfigurasi Awal Sistem</p>
+                </div>
+                <div class="setup-body">
+                    <form action="/setup/finish" method="POST">
+                        <div class="mb-4">
+                            <h5 class="text-primary mb-3"><i class="fas fa-user-shield me-2"></i>Akun Administrator</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Email Admin</label>
+                                <input type="email" name="admin_email" class="form-control" placeholder="admin@contoh.com" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Password Admin</label>
+                                <input type="password" name="admin_password" class="form-control" placeholder="Buat password kuat" required minlength="6">
+                            </div>
+                        </div>
+
+                        <hr class="my-4 opacity-25">
+
+                        <div class="mb-4">
+                            <h5 class="text-primary mb-3"><i class="fas fa-globe me-2"></i>Pengaturan Aplikasi</h5>
+                            <div class="mb-3">
+                                <label class="form-label">Nama Aplikasi</label>
+                                <input type="text" name="app_name" class="form-control" value="WA Gateway Official" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Domain URL (Penting untuk Webhook)</label>
+                                <input type="url" name="base_url" class="form-control" placeholder="https://wa.domainkamu.com" required>
+                                <div class="form-text text-muted small">
+                                    <i class="fas fa-info-circle me-1"></i> Masukkan URL lengkap dengan https://
+                                </div>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-rocket me-2"></i> Install & Jalankan
+                        </button>
+                    </form>
+                </div>
+            </div>
+            <div class="text-center mt-4 text-muted small">
+                &copy; 2026 WA Gateway System v3.7
+            </div>
+        </div>
+    </div>
+</body>
+</html>

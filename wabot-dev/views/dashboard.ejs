@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard - WA Gateway</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        .modal-body { max-height: 60vh; overflow-y: auto; }
+    </style>
+</head>
+<body class="bg-gray-100 font-sans leading-normal tracking-normal flex flex-col min-h-screen">
+
+    <nav class="bg-white shadow-md">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex-shrink-0">
+                    <!-- ================== REVISI DI SINI ================== -->
+                    <a href="/" class="text-xl font-bold text-gray-800 hover:text-gray-600">WA Gateway</a>
+                    <!-- ==================================================== -->
+                </div>
+                <div class="flex items-center">
+                    <% if (user.role === 'admin') { %>
+                        <a href="/admin" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded mr-4">Admin Panel</a>
+                    <% } %>
+                    <span class="text-gray-600 mr-4">Welcome, <%= user.email %> (<%= user.role %>)</span>
+                    <form action="/auth/logout" method="POST">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button type="submit" class="bg-red-500 hover:bg-red-700 text-white font-bold py-2 px-4 rounded">Logout</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8 flex-grow w-full">
+        <!-- Accounts Section -->
+        <div class="px-4 py-6 sm:px-0">
+            <div class="bg-white p-6 rounded-lg shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <div>
+                        <h2 class="text-2xl font-semibold text-gray-800">WhatsApp Accounts</h2>
+                        <p class="text-sm text-gray-500">
+                            Sessions used: <%= currentAccountCount %> / <%= sessionLimit %>
+                        </p>
+                    </div>
+                    <% if(canAddAccount) { %>
+                    <form action="/dashboard/accounts/add" method="POST" class="flex items-center">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <input type="text" name="name" placeholder="Account Name" class="border rounded-l py-2 px-3" required>
+                        <button type="submit" class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-r">Add Account</button>
+                    </form>
+                    <% } else { %>
+                    <div class="text-sm text-gray-600 text-right">
+                        <span>Batas maksimum sesi tercapai.</span>
+                    </div>
+                    <% } %>
+                </div>
+                <div id="accounts-container" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                    <% accounts.forEach(account => { %>
+                    <div class="border rounded-lg p-4 flex flex-col justify-between" id="account-<%= account.id %>">
+                        <div>
+                             <div class="flex justify-between items-center mb-2">
+                                <h3 class="font-bold text-lg"><%= account.name %></h3>
+                                <span class="text-xs font-mono bg-gray-200 text-gray-700 px-2 py-1 rounded"><%= account.sessionId %></span>
+                            </div>
+                            <p class="text-sm text-gray-600">Status:
+                                <span class="status-span font-semibold 
+                                    <%= account.status === 'connected' ? 'text-green-600' : '' %>
+                                    <%= account.status === 'disconnected' ? 'text-red-600' : '' %>
+                                    <%= account.status === 'connecting' || account.status === 'qr-code' ? 'text-yellow-600' : '' %>"
+                                >
+                                    <%= account.status %>
+                                </span>
+                            </p>
+                        </div>
+
+                        <div class="my-4 text-center qr-code-container hidden">
+                            <p class="text-sm mb-2">Scan this QR Code</p>
+                            <img src="" alt="QR Code" class="mx-auto">
+                        </div>
+
+                        <div class="actions-container flex justify-end items-center space-x-2 mt-4">
+                            <!-- Tombol akan di-generate oleh JavaScript -->
+                        </div>
+                    </div>
+                    <% }) %>
+                </div>
+            </div>
+        </div>
+        
+        <% if (locals.adminContactInfo) { %>
+        <div class="px-4 pt-2 sm:px-0">
+            <div class="bg-blue-50 border border-blue-200 text-center p-4 rounded-lg shadow-sm">
+                <p class="text-sm text-blue-800">Butuh bantuan atau ingin menambah batas sesi? Hubungi Admin: 
+                <% if (locals.adminContactInfo.includes('@')) { %>
+                    <a href="mailto:<%= locals.adminContactInfo %>" class="font-semibold text-blue-600 hover:underline"><%= locals.adminContactInfo %></a>
+                <% } else { %>
+                    <strong class="font-semibold"><%= locals.adminContactInfo %></strong>
+                <% } %>
+                </p>
+            </div>
+        </div>
+        <% } %>
+
+        <!-- Log Pesan Section -->
+        <div class="px-4 py-6 sm:px-0 mt-6">
+             <div class="bg-white p-6 rounded-lg shadow-lg">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-2xl font-semibold text-gray-800">Message Logs</h2>
+                    <select id="account-filter" class="border rounded py-2 px-3">
+                        <option value="all">All Accounts</option>
+                        <% accounts.forEach(account => { %>
+                        <option value="<%= account.id %>"><%= account.name %></option>
+                        <% }) %>
+                    </select>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Direction</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">From/To</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Content</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Media</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Time</th>
+                            </tr>
+                        </thead>
+                        <tbody id="message-log-body" class="bg-white divide-y divide-gray-200">
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <%- include('partials/_settings-modal') %>
+
+    <div id="delete-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
+            <div class="mt-3 text-center">
+                <div class="mx-auto flex items-center justify-center h-12 w-12 rounded-full bg-red-100">
+                    <svg class="h-6 w-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <h3 class="text-lg leading-6 font-medium text-gray-900 mt-4">Hapus Akun Sesi</h3>
+                <div class="mt-2 px-7 py-3">
+                    <p class="text-sm text-gray-500">Apakah Anda yakin ingin menghapus sesi <strong id="delete-account-name"></strong>? Tindakan ini tidak dapat dibatalkan.</p>
+                </div>
+                <div class="items-center px-4 py-3 flex justify-center space-x-4">
+                    <button id="cancel-delete-btn" class="px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none">
+                        Batal
+                    </button>
+                    <form id="delete-form" action="" method="POST">
+                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                        <button id="confirm-delete-btn" type="submit" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none">
+                            Hapus
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script id="server-data" type="application/json">
+        {
+            "csrfToken": "<%= csrfToken %>",
+            "accounts": <%- JSON.stringify(accounts) %>
+        }
+    </script>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const serverDataEl = document.getElementById('server-data');
+            const serverData = JSON.parse(serverDataEl.textContent);
+            const csrfToken = serverData.csrfToken;
+            const accountsData = new Map(serverData.accounts.map(acc => [acc.id, acc]));
+            const socket = io();
+    
+            const modal = document.getElementById('settings-modal');
+            const settingsForm = document.getElementById('settings-form');
+            const webhookUrlInput = document.getElementById('webhookUrl');
+            const apiKeyInput = document.getElementById('apiKey');
+            const mediaSettingsContainer = document.getElementById('media-settings-container');
+    
+            const deleteModal = document.getElementById('delete-modal');
+            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
+            const deleteForm = document.getElementById('delete-form');
+            const deleteAccountName = document.getElementById('delete-account-name');
+    
+            const openDeleteModal = (accountId, accountName) => {
+                deleteAccountName.textContent = accountName;
+                deleteForm.action = `/dashboard/accounts/delete/${accountId}`;
+                deleteModal.classList.remove('hidden');
+            };
+    
+            cancelDeleteBtn.addEventListener('click', () => {
+                deleteModal.classList.add('hidden');
+            });
+    
+            let mimeTypeList = [];
+            
+            fetch('/api/mime-types')
+                .then(response => response.json())
+                .then(data => {
+                    mimeTypeList = data;
+                    renderMimeTypeCheckboxes();
+                })
+                .catch(error => console.error('Gagal mengambil daftar tipe MIME:', error));
+            
+            function renderMimeTypeCheckboxes() {
+                const container = document.getElementById('mimeTypeOptions');
+                if (!container || mimeTypeList.length === 0) return;
+                
+                container.innerHTML = '';
+                
+                mimeTypeList.forEach((mimeType, index) => {
+                    const checkboxId = `mimetype-${index}`;
+                    const checkboxDiv = document.createElement('div');
+                    checkboxDiv.className = 'flex items-center mb-2';
+                    checkboxDiv.innerHTML = `
+                        <input 
+                            type="checkbox" 
+                            id="${checkboxId}" 
+                            value="${mimeType.value}"
+                            class="mimeType-checkbox h-4 w-4 text-blue-600 rounded"
+                        >
+                        <label for="${checkboxId}" class="ml-2 text-sm text-gray-700">${mimeType.label}</label>
+                    `;
+                    container.appendChild(checkboxDiv);
+                });
+                
+                document.querySelectorAll('.mimeType-checkbox').forEach(checkbox => {
+                    checkbox.addEventListener('change', updateHiddenInputValue);
+                });
+            }
+            
+            function updateHiddenInputValue() {
+                const selectedMimeTypes = Array.from(document.querySelectorAll('.mimeType-checkbox:checked'))
+                    .map(checkbox => checkbox.value);
+                document.getElementById('allowedMimeTypes').value = selectedMimeTypes.join(',');
+            }
+            
+            const openSettingsModal = (accountId) => {
+                const account = accountsData.get(accountId);
+                if (!account) return;
+    
+                settingsForm.action = `/dashboard/accounts/settings/${accountId}`;
+                webhookUrlInput.value = account.webhookUrl || '';
+                apiKeyInput.value = account.apiKey || '';
+
+                if (account.allowMedia) {
+                    mediaSettingsContainer.style.display = 'block';
+                    document.getElementById('maxFileSize').value = account.maxFileSize || '';
+
+                    setTimeout(() => { 
+                        const savedMimeTypes = account.allowedMimeTypes || [];
+                        document.querySelectorAll('.mimeType-checkbox').forEach(checkbox => {
+                            checkbox.checked = savedMimeTypes.includes(checkbox.value);
+                        });
+                        updateHiddenInputValue();
+                    }, 100);
+                } else {
+                    mediaSettingsContainer.style.display = 'none';
+                }
+                
+                document.getElementById('modal-account-name').textContent = account.name;
+                modal.classList.remove('hidden');
+            };
+    
+            document.getElementById('generate-api-key-btn').addEventListener('click', () => {
+                const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                let result = 'APIKEY_';
+                for (let i = 0; i < 32; i++) {
+                    result += characters.charAt(Math.floor(Math.random() * characters.length));
+                }
+                apiKeyInput.value = result;
+            });
+    
+            document.getElementById('close-modal-btn').addEventListener('click', () => {
+                modal.classList.add('hidden');
+            });
+
+            if (settingsForm) {
+                const csrfInput = settingsForm.querySelector('input[name="_csrf"]');
+                if(csrfInput) csrfInput.value = csrfToken;
+            }
+            
+            const renderAccountActions = (account) => {
+                const actionsContainer = document.querySelector(`#account-${account.id} .actions-container`);
+                if (!actionsContainer) return;
+                
+                let buttonsHtml = `
+                    <button data-account-id="${account.id}" class="settings-btn bg-gray-500 hover:bg-gray-600 text-white py-1 px-3 rounded text-sm">Settings</button>
+                `;
+    
+                if (account.status === 'disconnected') {
+                    buttonsHtml += `
+                        <form action="/dashboard/accounts/connect/${account.id}" method="POST" class="inline">
+                            <input type="hidden" name="_csrf" value="${csrfToken}">
+                            <button type="submit" class="bg-blue-500 hover:bg-blue-600 text-white py-1 px-3 rounded text-sm">Connect</button>
+                        </form>
+                    `;
+                } else {
+                    buttonsHtml += `
+                        <form action="/dashboard/accounts/disconnect/${account.id}" method="POST" class="inline">
+                            <input type="hidden" name="_csrf" value="${csrfToken}">
+                            <button type="submit" class="bg-orange-500 hover:bg-orange-600 text-white py-1 px-3 rounded text-sm">Disconnect</button>
+                        </form>
+                    `;
+                }
+    
+                buttonsHtml += `
+                    <button data-account-id="${account.id}" data-account-name="${account.name}" class="delete-btn bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded text-sm">Delete</button>
+                `;
+    
+                actionsContainer.innerHTML = buttonsHtml;
+            };
+    
+            const attachActionListeners = () => {
+                document.querySelectorAll('.settings-btn').forEach(btn => {
+                    btn.addEventListener('click', (event) => {
+                        const accountId = parseInt(event.target.dataset.accountId);
+                        openSettingsModal(accountId);
+                    });
+                });
+                
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', (event) => {
+                        const accountId = parseInt(event.target.dataset.accountId);
+                        const accountName = event.target.dataset.accountName;
+                        openDeleteModal(accountId, accountName);
+                    });
+                });
+            };
+    
+            accountsData.forEach(renderAccountActions);
+            attachActionListeners();
+    
+            socket.on('status-change', (data) => {
+                const { accountId, status } = data;
+                const account = accountsData.get(accountId);
+                if (!account) return;
+                
+                account.status = status;
+                
+                const accountDiv = document.getElementById(`account-${accountId}`);
+                if (!accountDiv) return;
+    
+                const statusSpan = accountDiv.querySelector('.status-span');
+                statusSpan.textContent = status;
+                statusSpan.className = 'status-span font-semibold';
+                if (status === 'connected') statusSpan.classList.add('text-green-600');
+                else if (status === 'disconnected') statusSpan.classList.add('text-red-600');
+                else statusSpan.classList.add('text-yellow-600');
+                
+                renderAccountActions(account);
+                attachActionListeners();
+    
+                if (status !== 'qr-code') {
+                    const qrContainer = accountDiv.querySelector('.qr-code-container');
+                    if (qrContainer) qrContainer.classList.add('hidden');
+                }
+            });
+    
+            socket.on('qr-code', (data) => {
+                const { accountId, qrCode } = data;
+                const accountDiv = document.getElementById(`account-${accountId}`);
+                if (accountDiv) {
+                    const qrContainer = accountDiv.querySelector('.qr-code-container');
+                    if (qrContainer) {
+                        qrContainer.querySelector('img').src = qrCode;
+                        qrContainer.classList.remove('hidden');
+                    }
+                }
+            });
+    
+            const messageLogBody = document.getElementById('message-log-body');
+            const accountFilter = document.getElementById('account-filter');
+            let currentMessages = [];
+            const renderMessages = () => {
+                const selectedAccountId = accountFilter.value;
+                const filteredMessages = currentMessages.filter(msg => 
+                    selectedAccountId === 'all' || msg.accountId == selectedAccountId
+                );
+                
+                messageLogBody.innerHTML = '';
+                filteredMessages.forEach(msg => {
+                    const directionClass = msg.direction === 'incoming' ? 'bg-blue-100 text-blue-800' : 'bg-green-100 text-green-800';
+                    const fromTo = msg.direction === 'incoming' ? (msg.from || '') : (msg.to || '');
+                    const content = msg.content ? String(msg.content).substring(0, 50) + (String(msg.content).length > 50 ? '...' : '') : '<i>[Media]</i>';
+                    const mediaLink = msg.mediaUrl ? `<a href="${msg.mediaUrl}" target="_blank" class="text-blue-500 hover:underline">View</a>` : '-';
+                    
+                    const row = `
+                        <tr>
+                            <td class="px-6 py-4 whitespace-nowrap"><span class="px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${directionClass}">${msg.direction.substring(0,3).toUpperCase()}</span></td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${fromTo}</td>
+                            <td class="px-6 py-4 text-sm text-gray-500">${content}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${mediaLink}</td>
+                            <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500">${new Date(msg.timestamp).toLocaleString()}</td>
+                        </tr>
+                    `;
+                    messageLogBody.insertAdjacentHTML('beforeend', row);
+                });
+            };
+            
+            const fetchMessages = async (accountId = 'all') => {
+                try {
+                    const response = await fetch(`/api/messages/${accountId}`);
+                    if (response.ok) {
+                        currentMessages = await response.json();
+                        renderMessages();
+                    }
+                } catch (error) {
+                    console.error('Gagal mengambil log pesan:', error);
+                }
+            };
+    
+            socket.on('new-message', (newMessage) => {
+                currentMessages.unshift(newMessage);
+                if (currentMessages.length > 100) currentMessages.pop();
+                renderMessages();
+            });
+    
+            accountFilter.addEventListener('change', () => {
+                fetchMessages(accountFilter.value);
+            });
+    
+            fetchMessages();
+        });
+    </script>
+</body>
+</html>
+
