@@ -12,7 +12,7 @@ const { handleConnectionUpdate } = require('./baileys-handlers/connection.handle
 const { handleMessageUpsert } = require('./baileys-handlers/message.handler');
 const { WhatsAppAccount, Message } = require('../models');
 const logger = require('../config/logger');
-const { emitSocketEvent } = require('./socket.service');
+const { emitSocketEvent, emitToUser } = require('./socket.service');
 
 const sessions = new Map();
 const SESSIONS_DIR = path.join(__dirname, '..', 'whatsapp-sessions');
@@ -23,7 +23,7 @@ class BaileysService {
     static async init() {
         try {
             await WhatsAppAccount.update({ status: 'disconnected', qrCode: null }, { where: { status: 'connecting' } });
-            
+
             const accountsToRestore = await WhatsAppAccount.findAll({ where: { status: 'connected' } });
             logger.info(`Ditemukan ${accountsToRestore.length} akun yang sebelumnya terhubung untuk dipulihkan.`);
             accountsToRestore.forEach(account => this.connect(account.id, true));
@@ -59,7 +59,6 @@ class BaileysService {
             version,
             auth: state,
             printQRInTerminal: false,
-        //    browser: Browsers.ubuntu('Chrome'),
             browser: Browsers.appropriate('Chrome'),
             logger: pino({ level: 'silent' }),
         });
@@ -70,26 +69,22 @@ class BaileysService {
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
-            
+
             await handleConnectionUpdate(update, sock, accountId, sessionDir, emitSocketEvent);
 
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
-                
+
                 if (statusCode === 515) {
                     logger.warn(`Terjadi Stream Error (515) untuk akun ${accountId}. Mencoba menyambung kembali secara otomatis...`);
                     setTimeout(() => {
-                        // ================== PERBAIKAN FINAL DI SINI ==================
-                        // Saat mencoba ulang setelah error 515, kita harus menganggapnya sebagai "pemulihan" (true)
-                        // agar file sesi yang baru dibuat tidak dihapus lagi.
-                        BaileysService.connect(accountId, true); 
-                        // =============================================================
+                        BaileysService.connect(accountId, true);
                     }, 5000);
                     return;
                 }
-                
-                const isPermanentDisconnection = 
-                    statusCode === DisconnectReason.loggedOut || 
+
+                const isPermanentDisconnection =
+                    statusCode === DisconnectReason.loggedOut ||
                     statusCode === DisconnectReason.connectionReplaced;
 
                 if (isPermanentDisconnection) {
@@ -100,13 +95,13 @@ class BaileysService {
                         let attemptCount = reconnectionAttempts.get(accountId) || 0;
                         attemptCount++;
                         reconnectionAttempts.set(accountId, attemptCount);
-                        
+
                         const baseDelay = 5000;
                         const maxDelay = 300000;
                         const delay = Math.min(baseDelay * Math.pow(2, attemptCount - 1), maxDelay);
-                        
+
                         logger.info(`Mencoba menyambungkan ulang akun ${accountId} dalam ${delay/1000} detik... (usaha ke-${attemptCount})`);
-                        
+
                         setTimeout(() => {
                             BaileysService.connect(accountId, true);
                         }, delay);
@@ -118,14 +113,14 @@ class BaileysService {
                 reconnectionAttempts.delete(accountId);
                 const account = await WhatsAppAccount.findByPk(accountId);
                 if (account) {
-                    isRestore = true; 
+                    isRestore = true;
                 }
             }
         });
 
         sock.ev.on('messages.upsert', (m) => handleMessageUpsert(m, sock, accountId, emitSocketEvent));
     }
-    
+
     static async disconnect(accountId) {
         const sock = sessions.get(accountId);
         if (sock) {
@@ -145,13 +140,20 @@ class BaileysService {
         if (fs.existsSync(sessionDir)) {
             fs.rmSync(sessionDir, { recursive: true, force: true });
         }
-        
+
         await WhatsAppAccount.update({ status: 'disconnected', qrCode: null }, { where: { id: accountId } });
-        emitSocketEvent('status-change', { accountId, status: 'disconnected' });
+
+        const account = await WhatsAppAccount.findByPk(accountId);
+        if (account) {
+            emitToUser(account.userId, 'status-change', { accountId, status: 'disconnected' });
+        } else {
+            emitSocketEvent('status-change', { accountId, status: 'disconnected' });
+        }
+
         logger.info(`Akun ${accountId} berhasil diputuskan koneksinya dan sesi dibersihkan.`);
         return true;
     }
-    
+
     static async sendMessage(accountId, to, text, media = null) {
         try {
             const sock = sessions.get(accountId);
@@ -166,48 +168,48 @@ class BaileysService {
             }
 
             let messagePayload;
-        
+
             if (media && (media.url || media.data || media.buffer)) {
                 const caption = text || '';
-        
+
                 if (media.url) {
                     if (media.type === 'image') messagePayload = { image: { url: media.url }, caption };
                     else if (media.type === 'document') messagePayload = { document: { url: media.url }, fileName: media.fileName || 'document', caption };
                     else if (media.type === 'video') messagePayload = { video: { url: media.url }, caption };
                     else throw new Error('Tipe media via URL tidak didukung.');
-                } 
+                }
                 else if (media.data) {
                     if (typeof media.data !== 'string' || !media.data.match(/^([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{3}=|[A-Za-z0-9+/]{2}==)?$/)) {
                         throw new Error('Data media bukan merupakan string Base64 yang valid.');
                     }
-                    
+
                     const buffer = Buffer.from(media.data, 'base64');
-                    
+
                     if (!buffer || buffer.length === 0) {
                         throw new Error('Gagal membuat buffer dari data Base64.');
                     }
-                    
+
                     if (media.type === 'image') messagePayload = { image: buffer, caption, mimetype: media.mimetype || 'image/jpeg' };
                     else if (media.type === 'document') {
-                        messagePayload = { 
-                            document: buffer, 
-                            mimetype: media.mimetype || 'application/octet-stream', 
+                        messagePayload = {
+                            document: buffer,
+                            mimetype: media.mimetype || 'application/octet-stream',
                             fileName: media.fileName || 'document.pdf',
-                            caption 
+                            caption
                         };
                     }
                     else if (media.type === 'video') {
-                        messagePayload = { 
-                            video: buffer, 
+                        messagePayload = {
+                            video: buffer,
                             mimetype: media.mimetype || 'video/mp4',
-                            caption 
+                            caption
                         };
                     }
                     else if (media.type === 'audio') {
-                        messagePayload = { 
-                            audio: buffer, 
+                        messagePayload = {
+                            audio: buffer,
                             mimetype: media.mimetype || 'audio/mpeg',
-                            caption 
+                            caption
                         };
                     }
                     else throw new Error('Tipe media via Base64 tidak didukung.');
@@ -216,45 +218,45 @@ class BaileysService {
                     if (!media.buffer || !Buffer.isBuffer(media.buffer)) {
                         throw new Error('Buffer media tidak valid.');
                     }
-                    
+
                     if (media.type === 'image') {
-                        messagePayload = { 
-                            image: media.buffer, 
-                            caption, 
-                            mimetype: media.mimetype || 'image/jpeg' 
+                        messagePayload = {
+                            image: media.buffer,
+                            caption,
+                            mimetype: media.mimetype || 'image/jpeg'
                         };
                     }
                     else if (media.type === 'document') {
-                        messagePayload = { 
-                            document: media.buffer, 
-                            mimetype: media.mimetype || 'application/octet-stream', 
+                        messagePayload = {
+                            document: media.buffer,
+                            mimetype: media.mimetype || 'application/octet-stream',
                             fileName: media.fileName || 'document.pdf',
-                            caption 
+                            caption
                         };
                     }
                     else if (media.type === 'video') {
-                        messagePayload = { 
-                            video: media.buffer, 
+                        messagePayload = {
+                            video: media.buffer,
                             mimetype: media.mimetype || 'video/mp4',
-                            caption 
+                            caption
                         };
                     }
                     else if (media.type === 'audio') {
-                        messagePayload = { 
-                            audio: media.buffer, 
+                        messagePayload = {
+                            audio: media.buffer,
                             mimetype: media.mimetype || 'audio/mpeg',
-                            caption 
+                            caption
                         };
                     }
                     else throw new Error('Tipe media via Buffer tidak didukung.');
                 }
                 else {
-                     throw new Error('Objek media tidak valid. Harus memiliki "url", "data", atau "buffer".');
+                    throw new Error('Objek media tidak valid. Harus memiliki "url", "data", atau "buffer".');
                 }
-            } 
+            }
             else if (text) {
                 messagePayload = { text };
-            } 
+            }
             else {
                 throw new Error('Pesan harus memiliki teks atau media.');
             }
@@ -272,10 +274,17 @@ class BaileysService {
                 timestamp: new Date(),
                 accountId,
                 sessionId: account.sessionId,
+                groupId: null,
+                senderId: null,
+                webhookSent: true,
             };
             const dbMessage = await Message.create(messageData);
-            
-            emitSocketEvent('new-message', dbMessage.toJSON());
+
+            if (account) {
+                emitToUser(account.userId, 'new-message', dbMessage.toJSON());
+            } else {
+                emitSocketEvent('new-message', dbMessage.toJSON());
+            }
 
             return dbMessage;
         } catch (error) {
@@ -286,4 +295,3 @@ class BaileysService {
 }
 
 module.exports = BaileysService;
-
