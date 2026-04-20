@@ -9,7 +9,6 @@ const helmet = require('helmet');
 const csurf = require('csurf');
 const cookieParser = require('cookie-parser');
 const { Server } = require("socket.io");
-const multer = require('multer');
 
 const sequelize = require('./config/database');
 const logger = require('./config/logger');
@@ -20,10 +19,6 @@ const BaileysService = require('./services/baileys.service');
 const { startQueueWorker } = require('./services/queue.service');
 const apiLimiter = require('./middleware/rateLimiter.middleware');
 const { initSettings } = require('./services/setting.service');
-
-// Import Middleware & Routes Setup
-const checkSetup = require('./middleware/checkSetup');
-const setupRoutes = require('./routes/setup.routes');
 
 const app = express();
 const server = http.createServer(app);
@@ -60,26 +55,22 @@ app.use(session({
     cookie: { 
         httpOnly: true, 
         secure: process.env.NODE_ENV === 'production', 
-        maxAge: 24 * 60 * 60 * 1000 // 1 hari
+        maxAge: 24 * 60 * 60 * 1000
     },
 }));
 
 app.use(passport.initialize());
 app.use(passport.session());
 
-// === 3. SATPAM SETUP (CEK APAKAH APLIKASI SUDAH DI-INSTALL) ===
-app.use(checkSetup);
-app.use('/setup', setupRoutes);
-
-// === 4. VIEW ENGINE & FLASH ===
+// === 3. VIEW ENGINE & FLASH ===
 app.use(flash());
 app.set('view engine', 'ejs');
 
-// === 5. ROUTE API (Tanpa CSRF, pakai Rate Limiter) ===
+// === 4. ROUTE API (Tanpa CSRF, pakai Rate Limiter) ===
 const apiRoutes = require('./routes/api.routes');
 app.use('/api', apiLimiter, apiRoutes);
 
-// === 6. PROTEKSI CSRF (Untuk Form HTML) ===
+// === 5. PROTEKSI CSRF (Untuk Form HTML) ===
 const csrfProtection = csurf();
 app.use(csrfProtection);
 
@@ -89,12 +80,12 @@ app.use((req, res, next) => {
     res.locals.success_msg = req.flash('success_msg');
     res.locals.error_msg = req.flash('error_msg');
     res.locals.error = req.flash('error');
-    res.locals.user = req.user || null; // Agar user selalu tersedia di view
+    res.locals.user = req.user || null;
     res.locals.adminContactInfo = process.env.ADMIN_CONTACT_INFO;
     next();
 });
 
-// === 7. ROUTE APLIKASI UTAMA ===
+// === 6. ROUTE APLIKASI UTAMA ===
 const authRoutes = require('./routes/auth.routes');
 const dashboardRoutes = require('./routes/dashboard.routes');
 const userRoutes = require('./routes/user.routes');
@@ -108,21 +99,19 @@ app.use('/admin', ensureAuthenticated, ensureTermsAccepted, adminRoutes);
 
 // Halaman Depan (Landing Page)
 app.get('/', (req, res) => {
-    // Opsional: Jika sudah login, langsung lempar ke dashboard
     if (req.isAuthenticated()) {
         return res.redirect('/dashboard');
     }
     res.render('landing-page', { user: req.user });
 });
 
-// === 8. ERROR HANDLING ===
+// === 7. ERROR HANDLING ===
 app.use((err, req, res, next) => {
     if (err.code !== 'EBADCSRFTOKEN') {
         console.error('🔥 CRITICAL ERROR:', err.stack || err);
         logger.error('Terjadi error tak terduga:', err);
     }
 
-    // Handle CSRF Error
     if (err.code === 'EBADCSRFTOKEN') {
         return res.status(403).send('<h1>403 - Forbidden</h1><p>Form expired. Silakan refresh halaman dan coba lagi.</p>');
     }
@@ -141,10 +130,9 @@ process.on('unhandledRejection', (reason, promise) => {
 
 process.on('uncaughtException', (error) => {
     logger.error('Uncaught Exception:', error);
-    // process.exit(1); // Jangan exit dulu biar container gak restart terus
 });
 
-// === 9. CLEANUP FILE SAMPAH ===
+// === 8. CLEANUP FILE SAMPAH ===
 const cleanupOldFiles = () => {
     const fs = require('fs');
     
@@ -171,32 +159,26 @@ const cleanupOldFiles = () => {
     cleanupDir('uploads', 24);
 };
 
-// === 10. START SERVER & DATABASE ===
+// === 9. START SERVER & DATABASE ===
 const PORT = process.env.PORT || 3000;
 
-// PENTING: Gunakan 'alter: true' agar data tidak hilang saat restart.
-// Gunakan 'force: true' HANYA SEKALI jika struktur tabel rusak parah.
 sequelize.sync({ alter: true }).then(async () => { 
     
     logger.info('✅ Database Synced (alter: true)');
     
-    // Sinkronisasi Tabel Session Express
     sessionStore.sync();
 
-    // Load Settings dari DB ke Memory
     try {
         await initSettings();
     } catch (err) {
         logger.error('Gagal memuat settings awal:', err);
     }
 
-    // Bersihkan file sampah
     cleanupOldFiles();
     
     server.listen(PORT, async () => {
         logger.info(`🚀 Server berjalan di http://localhost:${PORT}`);
         
-        // Inisialisasi Koneksi WhatsApp (Restore Session)
         try {
             logger.info('🔄 Menginisialisasi layanan Baileys...');
             await BaileysService.init();
@@ -204,7 +186,6 @@ sequelize.sync({ alter: true }).then(async () => {
             logger.error('❌ Gagal inisialisasi Baileys:', initError);
         }
 
-        // Jalankan Queue Worker (Antrian Pesan)
         startQueueWorker();
     });
 
