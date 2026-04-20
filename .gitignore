@@ -1,0 +1,172 @@
+# ============================================
+# ENVIRONMENT & CONFIGURATION
+# ============================================
+# Environment variables (SENSITIVE - never commit)
+.env
+.env.local
+.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ============================================
+# DEPENDENCIES
+# ============================================
+# Node.js modules (reinstall with npm install)
+node_modules/
+package-lock.json
+
+# ============================================
+# RUNTIME LOGS & OUTPUT
+# ============================================
+# Application logs
+*.log
+logs/
+*.lof
+app.log
+error.log
+access.log
+
+# npm logs
+npm-debug.log*
+npm-err.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+
+# ============================================
+# WHATSAPP SESSIONS & CREDENTIALS
+# ============================================
+# WhatsApp session data (sensitive - contains credentials & keys)
+whatsapp-sessions/
+session-*/
+
+# ============================================
+# TEMPORARY & GENERATED FILES
+# ============================================
+# Temporary uploads and generated files
+public/uploads/*
+public/temp/*
+public/dist/
+
+# Build outputs
+dist/
+build/
+.next/
+.nuxt/
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+
+# ============================================
+# IDE & EDITOR
+# ============================================
+# VSCode
+.vscode/
+.vscode-settings.json
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.iws
+*.ipr
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim & Nano
+*.swp
+*.swo
+*~
+.vim/
+
+# Emacs
+*~
+\#*\#
+.\#*
+
+# C9 IDE
+.c9/
+
+# Webstorm
+.webstorm.xml
+
+# ============================================
+# OPERATING SYSTEM FILES
+# ============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+
+# ============================================
+# DATABASES
+# ============================================
+# SQLite databases
+*.sqlite
+*.sqlite3
+*.db
+
+# ============================================
+# OS-SPECIFIC & BACKUP
+# ============================================
+# Backup files
+*.bak
+*.backup
+*.tmp
+backup/
+temp/
+tmp/
+*.gz
+*.zip
+
+# ============================================
+# DOCKER
+# ============================================
+# Docker volumes and buildkit cache
+.docker/
+docker-compose.override.yml
+
+# ============================================
+# MISC
+# ============================================
+# Node version managers
+.nvm
+.nvmrc
+.ruby-version
+
+# Process managers
+.pm2/
+ecosystem.config.local.js
+
+# SSL certificates (if any)
+*.pem
+*.cert
+*.key
+!*.example.pem
+
+# Testing
+.nyc_output/
+coverage/
+.mocha_output/
+
+# Yarn
+.yarn-integrity
+.yarnrc.yml
+.pnp.*
