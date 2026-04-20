@@ -5,25 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - WA Gateway</title>
     <script src="https://cdn.tailwindcss.com"></script>
-</head><form action="/auth/login" method="POST">
-    
-    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-    <% if (typeof error !== 'undefined' && error.length > 0) { %>
-        <div class="alert alert-danger"><%= error %></div>
-    <% } %>
-
-    <div class="mb-3">
-        <label>Email Address</label>
-        <input type="email" name="email" class="form-control" required>
-    </div>
-
-    <div class="mb-3">
-        <label>Password</label>
-        <input type="password" name="password" class="form-control" required>
-    </div>
-
-    <button type="submit" class="btn btn-primary w-100">Login Masuk</button>
-</form>
+</head>
 <body class="bg-gray-100 flex items-center justify-center h-screen">
     <div class="w-full max-w-sm p-8 bg-white rounded-lg shadow-lg">
         <h1 class="text-2xl font-bold text-center text-gray-800 mb-6">WA Gateway Login</h1>
@@ -73,4 +55,3 @@
     </div>
 </body>
 </html>
-

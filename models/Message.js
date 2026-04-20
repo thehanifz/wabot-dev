@@ -12,7 +12,7 @@ module.exports = (sequelize, DataTypes) => {
   }
   Message.init(
     {
-      messageId: { type: DataTypes.STRING, allowNull: false, unique: true },
+      messageId: { type: DataTypes.STRING, allowNull: false },
       direction: { type: DataTypes.ENUM('incoming', 'outgoing'), allowNull: false },
       from: { type: DataTypes.STRING, allowNull: false },
       to: { type: DataTypes.STRING, allowNull: false },
@@ -20,19 +20,23 @@ module.exports = (sequelize, DataTypes) => {
       type: { type: DataTypes.STRING },
       status: { type: DataTypes.STRING },
       timestamp: { type: DataTypes.DATE, allowNull: false },
-      
-      // ================== PERUBAHAN DI SINI ==================
-      // Menambahkan sessionId untuk dikirim ke webhook
-      sessionId: { type: DataTypes.STRING },
-      // =======================================================
-      
+      sessionId: { type: DataTypes.STRING, allowNull: false },
+      groupId: { type: DataTypes.STRING },
+      senderId: { type: DataTypes.STRING },
+      webhookSent: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: false },
+      processedAt: { type: DataTypes.DATE },
       mediaUrl: { type: DataTypes.STRING }, // URL sementara di server kita
       mediaOriginalName: { type: DataTypes.STRING },
-      
     },
     {
       sequelize,
       modelName: 'Message',
+      indexes: [
+        { unique: true, fields: ['messageId', 'sessionId'] },
+        { fields: ['accountId', 'timestamp'] },
+        { fields: ['groupId'] },
+        { fields: ['senderId'] },
+      ],
     }
   );
   return Message;

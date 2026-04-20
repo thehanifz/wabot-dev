@@ -17,16 +17,13 @@ const SequelizeStore = require('connect-session-sequelize')(session.Store);
 const { initSocket } = require('./services/socket.service');
 const BaileysService = require('./services/baileys.service');
 const { startQueueWorker } = require('./services/queue.service');
-const apiLimiter = require('./middleware/rateLimiter.middleware');
+const { apiLimiter } = require('./middleware/rateLimiter.middleware');
 const { initSettings } = require('./services/setting.service');
+const { waitForDatabaseReady } = require('./services/db-health-check.service');
 
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
-
-// Inisialisasi Socket.io & Passport
-initSocket(io);
-require('./config/passport')(passport);
 
 // === 1. MIDDLEWARE DASAR ===
 app.set('trust proxy', 1);
@@ -37,7 +34,7 @@ app.use(cookieParser());
 app.use(helmet.contentSecurityPolicy({
     directives: {
         "default-src": ["'self'"],
-        "script-src": ["'self'", "'unsafe-inline'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
+        "script-src": ["'self'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
         "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
         "img-src": ["'self'", "data:", "https://*"],
         "connect-src": ["'self'", "ws:", "wss:"],
@@ -47,7 +44,7 @@ app.use(helmet.contentSecurityPolicy({
 
 // === 2. SESI DATABASE ===
 const sessionStore = new SequelizeStore({ db: sequelize });
-app.use(session({
+const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET,
     store: sessionStore,
     resave: false,
@@ -57,7 +54,18 @@ app.use(session({
         secure: process.env.NODE_ENV === 'production', 
         maxAge: 24 * 60 * 60 * 1000
     },
-}));
+});
+
+app.use(sessionMiddleware);
+
+// Bagikan sesi Express ke Socket.IO agar socket bisa membaca session.passport.user
+io.use((socket, next) => {
+    sessionMiddleware(socket.request, {}, next);
+});
+
+// Inisialisasi Socket.io & Passport
+initSocket(io);
+require('./config/passport')(passport);
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -162,7 +170,7 @@ const cleanupOldFiles = () => {
 // === 9. START SERVER & DATABASE ===
 const PORT = process.env.PORT || 3000;
 
-sequelize.sync({ alter: true }).then(async () => { 
+waitForDatabaseReady(sequelize).then(() => sequelize.sync({ alter: true })).then(async () => { 
     
     logger.info('✅ Database Synced (alter: true)');
     

@@ -1,23 +1,22 @@
 const rateLimit = require('express-rate-limit');
 const logger = require('../config/logger');
 
-// Konfigurasi rate limiter untuk semua endpoint API
-const apiLimiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // Jendela waktu 15 menit
-    max: 50, // Batasi setiap IP hingga 50 permintaan per jendela waktu
-    standardHeaders: true, // Kirim header RateLimit-* sesuai standar RFC
-    legacyHeaders: false, // Nonaktifkan header lama X-RateLimit-*
-    
-    // Pesan yang akan dikirim saat batas terlampaui
-    message: {
-        error: 'Terlalu banyak permintaan dari IP Anda, silakan coba lagi setelah 15 menit.'
-    },
-
-    // Fungsi handler opsional untuk mencatat saat ada IP yang melewati batas
+const createLimiter = (max, message) => rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: message },
     handler: (req, res, next, options) => {
         logger.warn(`Rate limit terlampaui untuk IP: ${req.ip} pada endpoint: ${req.originalUrl}`);
         res.status(options.statusCode).send(options.message);
     },
 });
 
-module.exports = apiLimiter;
+const apiLimiter = createLimiter(50, 'Terlalu banyak permintaan dari IP Anda, silakan coba lagi setelah 15 menit.');
+const authLimiter = createLimiter(10, 'Terlalu banyak percobaan autentikasi. Silakan coba lagi setelah 15 menit.');
+
+module.exports = {
+    apiLimiter,
+    authLimiter,
+};

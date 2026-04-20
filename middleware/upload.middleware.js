@@ -1,16 +1,46 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const crypto = require('crypto');
 const logger = require('../config/logger');
 const { WhatsAppAccount } = require('../models');
+let fileTypeFromBuffer = null;
+
+try {
+    ({ fileTypeFromBuffer } = require('file-type'));
+} catch (error) {}
 
 // Pengaturan default dari .env sebagai fallback
 const DEFAULT_MAX_SIZE_MB = parseInt(process.env.UPLOAD_MAX_SIZE_MB, 10) || 15;
 const DEFAULT_ALLOWED_MIMETYPES_STRING = process.env.UPLOAD_ALLOWED_MIMETYPES || 'image/jpeg,image/png,application/pdf';
 const DEFAULT_ALLOWED_MIMETYPES = DEFAULT_ALLOWED_MIMETYPES_STRING.replace(/"/g, '').split(',').map(m => m.trim());
+const PRIVATE_UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 
 // 1. Inisialisasi multer untuk memproses request ke memori terlebih dahulu
 const memoryUpload = multer({ storage: multer.memoryStorage() }).any();
+
+const detectMimeFromMagicBytes = async (buffer, fallbackMime) => {
+    if (!buffer || buffer.length < 4) {
+        return fallbackMime || null;
+    }
+
+    if (fileTypeFromBuffer) {
+        try {
+            const detected = await fileTypeFromBuffer(buffer);
+            if (detected?.mime) {
+                return detected.mime;
+            }
+        } catch (error) {}
+    }
+
+    if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return 'image/jpeg';
+    if (buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) return 'image/png';
+    if (buffer[0] === 0x25 && buffer[1] === 0x50 && buffer[2] === 0x44 && buffer[3] === 0x46) return 'application/pdf';
+    if (buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) return 'image/gif';
+    if (buffer[0] === 0x4D && buffer[1] === 0x5A) return 'application/x-msdownload';
+
+    return fallbackMime || null;
+};
 
 /**
  * Middleware cerdas untuk menangani unggahan media secara dinamis.
@@ -68,20 +98,20 @@ const handleMediaUpload = (req, res, next) => {
                     return res.status(400).json({ error: `File terlalu besar.` });
                 }
 
-                if (!allowedMimeTypes.includes(file.mimetype)) {
-                    return res.status(400).json({ error: `Tipe file tidak diizinkan: ${file.mimetype}.` });
+                const actualMimeType = await detectMimeFromMagicBytes(file.buffer, file.mimetype);
+                if (!actualMimeType || !allowedMimeTypes.includes(actualMimeType)) {
+                    return res.status(400).json({ error: `Tipe file tidak diizinkan: ${actualMimeType || file.mimetype}.` });
                 }
 
-                // --- Simpan File ke Disk ---
-                const uploadPath = path.join(__dirname, '..', 'public', 'uploads');
-                fs.mkdirSync(uploadPath, { recursive: true });
-                const uniqueSuffix = Date.now() + '-' + file.originalname.replace(/\s/g, '_');
-                const filePath = path.join(uploadPath, uniqueSuffix);
+                fs.mkdirSync(PRIVATE_UPLOAD_DIR, { recursive: true });
+
+                const originalExtension = path.extname(file.originalname || '').toLowerCase();
+                const randomName = `${Date.now()}-${crypto.randomBytes(8).toString('hex')}${originalExtension}`;
+                const filePath = path.join(PRIVATE_UPLOAD_DIR, randomName);
 
                 fs.writeFileSync(filePath, file.buffer);
 
-                // Siapkan objek `req.file` yang dibutuhkan oleh controller
-                req.file = { ...file, path: filePath };
+                req.file = { ...file, path: filePath, mimetype: actualMimeType };
             }
             
             // Teruskan informasi akun ke controller
@@ -100,4 +130,3 @@ const handleMediaUpload = (req, res, next) => {
 module.exports = {
     handleMediaUpload,
 };
-

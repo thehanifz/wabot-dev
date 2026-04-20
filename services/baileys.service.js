@@ -19,6 +19,26 @@ const SESSIONS_DIR = path.join(__dirname, '..', 'whatsapp-sessions');
 
 const reconnectionAttempts = new Map();
 
+const parseAccountId = (accountId) => {
+    if (!/^\d+$/.test(String(accountId))) {
+        throw new Error('accountId tidak valid.');
+    }
+
+    return parseInt(accountId, 10);
+};
+
+const resolveSessionDir = (accountId) => {
+    const normalizedId = parseAccountId(accountId);
+    const baseDir = path.resolve(SESSIONS_DIR);
+    const sessionDir = path.resolve(baseDir, `session-${normalizedId}`);
+
+    if (!sessionDir.startsWith(`${baseDir}${path.sep}`)) {
+        throw new Error('Path sesi tidak valid.');
+    }
+
+    return sessionDir;
+};
+
 class BaileysService {
     static async init() {
         try {
@@ -34,10 +54,11 @@ class BaileysService {
     }
 
     static async connect(accountId, isRestore = false) {
-        const sessionDir = path.join(SESSIONS_DIR, `session-${accountId}`);
+        const normalizedAccountId = parseAccountId(accountId);
+        const sessionDir = resolveSessionDir(normalizedAccountId);
 
         if (!isRestore && fs.existsSync(sessionDir)) {
-            logger.info(`Membersihkan sesi lama untuk akun ${accountId} sebelum mencoba koneksi baru.`);
+            logger.info(`Membersihkan sesi lama untuk akun ${normalizedAccountId} sebelum mencoba koneksi baru.`);
             fs.rmSync(sessionDir, { recursive: true, force: true });
         }
 
@@ -45,8 +66,8 @@ class BaileysService {
             fs.mkdirSync(sessionDir, { recursive: true });
         }
 
-        if (sessions.has(accountId) && sessions.get(accountId)?.ws?.isOpen) {
-            logger.warn(`Sesi untuk akun ${accountId} sudah berjalan, permintaan koneksi diabaikan.`);
+        if (sessions.has(normalizedAccountId) && sessions.get(normalizedAccountId)?.ws?.isOpen) {
+            logger.warn(`Sesi untuk akun ${normalizedAccountId} sudah berjalan, permintaan koneksi diabaikan.`);
             return;
         }
 
@@ -63,22 +84,22 @@ class BaileysService {
             logger: pino({ level: 'silent' }),
         });
 
-        sessions.set(accountId, sock);
+        sessions.set(normalizedAccountId, sock);
 
         sock.ev.on('creds.update', saveCreds);
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
 
-            await handleConnectionUpdate(update, sock, accountId, sessionDir, emitSocketEvent);
+            await handleConnectionUpdate(update, sock, normalizedAccountId, sessionDir, emitToUser);
 
             if (connection === 'close') {
                 const statusCode = lastDisconnect?.error?.output?.statusCode;
 
                 if (statusCode === 515) {
-                    logger.warn(`Terjadi Stream Error (515) untuk akun ${accountId}. Mencoba menyambung kembali secara otomatis...`);
+                    logger.warn(`Terjadi Stream Error (515) untuk akun ${normalizedAccountId}. Mencoba menyambung kembali secara otomatis...`);
                     setTimeout(() => {
-                        BaileysService.connect(accountId, true);
+                        BaileysService.connect(normalizedAccountId, true);
                     }, 5000);
                     return;
                 }
@@ -88,41 +109,42 @@ class BaileysService {
                     statusCode === DisconnectReason.connectionReplaced;
 
                 if (isPermanentDisconnection) {
-                    logger.error(`Koneksi untuk akun ${accountId} ditutup permanen. Sesi akan dihapus.`);
-                    await BaileysService.disconnect(accountId);
+                    logger.error(`Koneksi untuk akun ${normalizedAccountId} ditutup permanen. Sesi akan dihapus.`);
+                    await BaileysService.disconnect(normalizedAccountId);
                 } else {
                     if (isRestore) {
-                        let attemptCount = reconnectionAttempts.get(accountId) || 0;
+                        let attemptCount = reconnectionAttempts.get(normalizedAccountId) || 0;
                         attemptCount++;
-                        reconnectionAttempts.set(accountId, attemptCount);
+                        reconnectionAttempts.set(normalizedAccountId, attemptCount);
 
                         const baseDelay = 5000;
                         const maxDelay = 300000;
                         const delay = Math.min(baseDelay * Math.pow(2, attemptCount - 1), maxDelay);
 
-                        logger.info(`Mencoba menyambungkan ulang akun ${accountId} dalam ${delay/1000} detik... (usaha ke-${attemptCount})`);
-
+                        logger.info(`Mencoba menyambungkan ulang akun ${normalizedAccountId} dalam ${delay/1000} detik... (usaha ke-${attemptCount})`);
+                        
                         setTimeout(() => {
-                            BaileysService.connect(accountId, true);
+                            BaileysService.connect(normalizedAccountId, true);
                         }, delay);
                     } else {
-                        logger.warn(`Koneksi untuk sesi baru ${accountId} gagal. Menunggu tindakan pengguna.`);
+                        logger.warn(`Koneksi untuk sesi baru ${normalizedAccountId} gagal. Menunggu tindakan pengguna.`);
                     }
                 }
             } else if (connection === 'open') {
-                reconnectionAttempts.delete(accountId);
-                const account = await WhatsAppAccount.findByPk(accountId);
+                reconnectionAttempts.delete(normalizedAccountId);
+                const account = await WhatsAppAccount.findByPk(normalizedAccountId);
                 if (account) {
                     isRestore = true;
                 }
             }
         });
 
-        sock.ev.on('messages.upsert', (m) => handleMessageUpsert(m, sock, accountId, emitSocketEvent));
+        sock.ev.on('messages.upsert', (m) => handleMessageUpsert(m, sock, normalizedAccountId, emitSocketEvent));
     }
-
+    
     static async disconnect(accountId) {
-        const sock = sessions.get(accountId);
+        const normalizedAccountId = parseAccountId(accountId);
+        const sock = sessions.get(normalizedAccountId);
         if (sock) {
             try {
                 await Promise.race([
@@ -130,27 +152,27 @@ class BaileysService {
                     new Promise(resolve => setTimeout(resolve, 2000))
                 ]);
             } catch (e) {
-                logger.warn(`Terjadi error saat logout dari sesi ${accountId}, mungkin sesi sudah tidak valid. Melanjutkan pembersihan...`);
+                logger.warn(`Terjadi error saat logout dari sesi ${normalizedAccountId}, mungkin sesi sudah tidak valid. Melanjutkan pembersihan...`);
             }
         }
-        sessions.delete(accountId);
-        reconnectionAttempts.delete(accountId);
+        sessions.delete(normalizedAccountId);
+        reconnectionAttempts.delete(normalizedAccountId);
 
-        const sessionDir = path.join(SESSIONS_DIR, `session-${accountId}`);
+        const sessionDir = resolveSessionDir(normalizedAccountId);
         if (fs.existsSync(sessionDir)) {
             fs.rmSync(sessionDir, { recursive: true, force: true });
         }
 
-        await WhatsAppAccount.update({ status: 'disconnected', qrCode: null }, { where: { id: accountId } });
+        await WhatsAppAccount.update({ status: 'disconnected', qrCode: null }, { where: { id: normalizedAccountId } });
 
-        const account = await WhatsAppAccount.findByPk(accountId);
+        const account = await WhatsAppAccount.findByPk(normalizedAccountId);
         if (account) {
-            emitToUser(account.userId, 'status-change', { accountId, status: 'disconnected' });
+            emitToUser(account.userId, 'status-change', { accountId: normalizedAccountId, status: 'disconnected' });
         } else {
-            emitSocketEvent('status-change', { accountId, status: 'disconnected' });
+            emitSocketEvent('status-change', { accountId: normalizedAccountId, status: 'disconnected' });
         }
 
-        logger.info(`Akun ${accountId} berhasil diputuskan koneksinya dan sesi dibersihkan.`);
+        logger.info(`Akun ${normalizedAccountId} berhasil diputuskan koneksinya dan sesi dibersihkan.`);
         return true;
     }
 
@@ -277,6 +299,7 @@ class BaileysService {
                 groupId: null,
                 senderId: null,
                 webhookSent: true,
+                processedAt: new Date(),
             };
             const dbMessage = await Message.create(messageData);
 

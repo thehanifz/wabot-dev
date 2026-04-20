@@ -25,6 +25,13 @@ const initSocket = (socketInstance) => {
 
         logger.info(`[SOCKET] Socket ${socket.id} terotentikasi untuk userId ${userId}`);
 
+        socket.on('authenticate', (claimedUserId) => {
+            if (claimedUserId && String(claimedUserId) !== String(socket.userId)) {
+                logger.warn(`[SOCKET] Klaim userId tidak valid dari socket ${socket.id}. Disconnect paksa.`);
+                socket.disconnect(true);
+            }
+        });
+
         socket.on('disconnect', () => {
             logger.info(`[SOCKET] Socket ${socket.id} terputus (userId: ${socket.userId})`);
             if (socket.userId) {

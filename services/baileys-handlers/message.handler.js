@@ -32,13 +32,15 @@ const processSingleMessage = async (messageData, accountId, emitSocketEvent) => 
 
         if (created || !dbMessage.webhookSent) {
             logger.info(`Mengirim webhook untuk pesan: ID=${dbMessage.messageId}, SessionId=${dbMessage.sessionId}, Dari=${dbMessage.from}, Jenis=${dbMessage.type}`);
-            await sendWebhook('message.incoming', dbMessage.toJSON());
+            const webhookSent = await sendWebhook('message.incoming', dbMessage.toJSON());
 
-            try {
-                await dbMessage.update({ webhookSent: true });
-                logger.info(`✅ Webhook berhasil dikirim untuk session ${messageData.sessionId}`);
-            } catch (updateError) {
-                logger.error(`[processSingleMessage] GAGAL update webhookSent: ${updateError.message}`, updateError);
+            if (webhookSent) {
+                try {
+                    await dbMessage.update({ webhookSent: true, processedAt: new Date() });
+                    logger.info(`✅ Webhook berhasil dikirim untuk session ${messageData.sessionId}`);
+                } catch (updateError) {
+                    logger.error(`[processSingleMessage] GAGAL update webhookSent: ${updateError.message}`, updateError);
+                }
             }
         }
     } catch (error) {
@@ -330,6 +332,7 @@ const handleMessageUpsert = async (m, sock, accountId, emitSocketEvent) => {
             groupId: isGroupMessage ? msg.key.remoteJid : null,
             senderId: sender || null,
             webhookSent: false,
+            processedAt: null,
         };
 
         messageQueue.push({ messageData, accountId, timestamp: Date.now() });

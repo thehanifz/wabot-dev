@@ -3,6 +3,9 @@ const router = express.Router();
 const passport = require('passport');
 const authController = require('../controllers/auth.controller');
 const { ensureGuest, ensureAuthenticated } = require('../middleware/auth.middleware');
+const { authLimiter } = require('../middleware/rateLimiter.middleware');
+
+router.use(authLimiter);
 
 // Login Page (Google OAuth only)
 router.get('/login', ensureGuest, authController.getLoginPage);
@@ -20,9 +23,23 @@ router.get('/google', passport.authenticate('google', { scope: ['profile', 'emai
 router.get(
     '/google/callback',
     passport.authenticate('google', { failureRedirect: '/auth/login', failureFlash: true }),
-    (req, res) => {
-        req.flash('success_msg', 'Login berhasil via Google.');
-        res.redirect('/dashboard');
+    (req, res, next) => {
+        const authenticatedUser = req.user;
+
+        req.session.regenerate((sessionError) => {
+            if (sessionError) {
+                return next(sessionError);
+            }
+
+            req.login(authenticatedUser, (loginError) => {
+                if (loginError) {
+                    return next(loginError);
+                }
+
+                req.flash('success_msg', 'Login berhasil via Google.');
+                return res.redirect('/dashboard');
+            });
+        });
     }
 );
 

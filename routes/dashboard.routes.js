@@ -1,21 +1,18 @@
 const express = require('express');
 const router = express.Router();
 const dashboardController = require('../controllers/dashboard.controller');
-const { ensureAuthenticated } = require('../middleware/auth.middleware'); // Sesuaikan path middleware Anda
+const accountController = require('../controllers/account.controller');
+const { ensureAuthenticated } = require('../middleware/auth.middleware');
 
-// Middleware auth untuk semua route dashboard
 router.use(ensureAuthenticated);
 
-// Halaman Utama
 router.get('/', dashboardController.getDashboard);
-
-// Aksi Akun
-router.post('/accounts/add', dashboardController.addAccount);
-router.post('/accounts/delete/:id', dashboardController.deleteAccount);
-router.post('/accounts/settings/:id', dashboardController.updateAccountSettings);
-
-// Placeholder untuk connect/disconnect (Nanti disambung ke logic WA)
-router.post('/accounts/connect/:id', (req, res) => res.redirect('/dashboard')); 
-router.post('/accounts/disconnect/:id', (req, res) => res.redirect('/dashboard'));
+router.get('/generate-api-key', accountController.generateApiKey);
+router.get('/accounts/:accountId/settings', accountController.getSettings);
+router.post('/accounts/add', accountController.addAccount);
+router.post('/accounts/delete/:accountId', accountController.deleteAccount);
+router.post('/accounts/settings/:accountId', accountController.updateSettings);
+router.post('/accounts/connect/:accountId', accountController.connectAccount);
+router.post('/accounts/disconnect/:accountId', accountController.disconnectAccount);
 
 module.exports = router;

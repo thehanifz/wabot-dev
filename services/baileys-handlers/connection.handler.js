@@ -5,7 +5,7 @@ const fs = require('fs');
 const qrcode = require('qrcode');
 
 // ================== LOG DEBUG DITAMBAHKAN DI SINI ==================
-const handleConnectionUpdate = async (update, sock, accountId, sessionDir, emitSocketEvent) => {
+const handleConnectionUpdate = async (update, sock, accountId, sessionDir, emitToUser) => {
     // Log semua data mentah yang diterima dari Baileys
 //    logger.info(`[Connection Debug] Menerima pembaruan untuk akun ${accountId}: ${JSON.stringify(update)}`);
 
@@ -17,7 +17,7 @@ const handleConnectionUpdate = async (update, sock, accountId, sessionDir, emitS
         try {
             const qrCodeDataUrl = await qrcode.toDataURL(qr);
             await account.update({ status: 'qr-code', qrCode: qrCodeDataUrl });
-            emitSocketEvent('qr-code', { accountId, qrCode: qrCodeDataUrl });
+            emitToUser(account.userId, 'qr-code', { accountId, qrCode: qrCodeDataUrl });
             logger.info(`QR code dibuat untuk akun ${accountId}.`);
         } catch (e) {
             logger.error(`Gagal membuat QR code untuk akun ${accountId}`, e);
@@ -39,17 +39,17 @@ const handleConnectionUpdate = async (update, sock, accountId, sessionDir, emitS
                 fs.rmSync(sessionDir, { recursive: true, force: true });
             }
             await account.update({ status: 'disconnected', qrCode: null });
-            emitSocketEvent('status-change', { accountId, status: 'disconnected' });
+            emitToUser(account.userId, 'status-change', { accountId, status: 'disconnected' });
         } else {
              logger.warn(`Koneksi untuk akun ${accountId} terputus. Status akan dicoba pulihkan.`);
         }
     } else if (connection === 'open') {
         await account.update({ status: 'connected', qrCode: null, lastConnectedAt: new Date() });
-        emitSocketEvent('status-change', { accountId, status: 'connected' });
+        emitToUser(account.userId, 'status-change', { accountId, status: 'connected' });
         logger.info(`Akun WhatsApp ${accountId} berhasil terhubung.`);
     } else if (connection === 'connecting') {
         await account.update({ status: 'connecting' });
-        emitSocketEvent('status-change', { accountId, status: 'connecting' });
+        emitToUser(account.userId, 'status-change', { accountId, status: 'connecting' });
         logger.info(`Akun WhatsApp ${accountId} sedang mencoba terhubung...`);
     }
 };

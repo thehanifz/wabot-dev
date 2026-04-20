@@ -2,27 +2,37 @@ const pino = require('pino');
 const path = require('path');
 
 const isProduction = process.env.NODE_ENV === 'production';
+const logDir = path.join(__dirname, '..');
 
-// Tentukan target logging berdasarkan environment
 let transport;
 if (isProduction) {
-    // Di produksi, log ke file untuk persistensi
     transport = pino.transport({
         targets: [
             {
                 level: 'info',
-                target: 'pino/file',
-                options: { destination: path.join(__dirname, '..', 'app.log') }
+                target: 'pino-roll',
+                options: {
+                    file: path.join(logDir, 'app.log'),
+                    mkdir: true,
+                    size: '100m',
+                    frequency: 'daily',
+                    limit: { count: 7 }
+                }
             },
             {
                 level: 'error',
-                target: 'pino/file',
-                options: { destination: path.join(__dirname, '..', 'error.log') }
+                target: 'pino-roll',
+                options: {
+                    file: path.join(logDir, 'error.log'),
+                    mkdir: true,
+                    size: '100m',
+                    frequency: 'daily',
+                    limit: { count: 7 }
+                }
             }
         ]
     });
 } else {
-    // Di development, log ke console dengan format yang rapi
     transport = pino.transport({
         target: 'pino-pretty',
         options: {
@@ -33,10 +43,8 @@ if (isProduction) {
     });
 }
 
-// Perbaikan: Set level log secara eksplisit. 'debug' untuk development, 'info' untuk produksi.
 const logger = pino({
     level: isProduction ? 'info' : 'debug',
 }, transport);
 
 module.exports = logger;
-

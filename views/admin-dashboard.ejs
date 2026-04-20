@@ -69,17 +69,13 @@
                                     <span class="text-xs font-mono bg-gray-200 text-gray-700 px-2 py-1 rounded"><%= account.sessionId %></span>
                                 </div>
                                 <p class="text-sm text-gray-600">Status:
-                                    <span class="font-semibold 
-                                        <%= account.status === 'connected' ? 'text-green-600' : '' %>
-                                        <%= account.status === 'disconnected' ? 'text-red-600' : '' %>
-                                        <%= account.status === 'connecting' || account.status === 'qr-code' ? 'text-yellow-600' : '' %>">
+                                    <span class="font-semibold <%= account.status === 'connected' ? 'text-green-600' : '' %> <%= account.status === 'disconnected' ? 'text-red-600' : '' %> <%= account.status === 'connecting' || account.status === 'qr-code' ? 'text-yellow-600' : '' %>">
                                         <%= account.status %>
                                     </span>
                                 </p>
                             </div>
 
                             <div class="flex justify-between items-center mt-4">
-                                <!-- Allow Media Toggle -->
                                 <div class="flex items-center space-x-2">
                                     <span class="text-sm text-gray-700">Allow Media:</span>
                                     <form action="/admin/accounts/toggle-media/<%= account.id %>" method="POST" class="toggle-form">
@@ -90,7 +86,6 @@
                                         </div>
                                     </form>
                                 </div>
-                                <!-- Delete Button -->
                                 <button data-account-id="<%= account.id %>" data-account-name="<%= account.name %>" class="delete-btn bg-red-600 hover:bg-red-700 text-white py-1 px-3 rounded text-sm">Delete</button>
                             </div>
                         </div>
@@ -100,7 +95,6 @@
         </div>
     </main>
 
-    <!-- Modal Konfirmasi Hapus -->
     <div id="delete-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
         <div class="relative top-20 mx-auto p-5 border w-full max-w-md shadow-lg rounded-md bg-white">
             <div class="mt-3 text-center">
@@ -112,83 +106,16 @@
                     <p class="text-sm text-gray-500">Apakah Anda yakin ingin menghapus sesi <strong id="delete-account-name"></strong>? Tindakan ini tidak dapat dibatalkan.</p>
                 </div>
                 <div class="items-center px-4 py-3 flex justify-center space-x-4">
-                    <button id="cancel-delete-btn" class="px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none">
-                        Batal
-                    </button>
+                    <button id="cancel-delete-btn" class="px-4 py-2 bg-gray-200 text-gray-800 text-base font-medium rounded-md shadow-sm hover:bg-gray-300 focus:outline-none">Batal</button>
                     <form id="delete-form" action="" method="POST">
                         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                        <button id="confirm-delete-btn" type="submit" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none">
-                            Hapus
-                        </button>
+                        <button id="confirm-delete-btn" type="submit" class="px-4 py-2 bg-red-600 text-white text-base font-medium rounded-md shadow-sm hover:bg-red-700 focus:outline-none">Hapus</button>
                     </form>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            // Logika Filter
-            const userFilter = document.getElementById('user-filter');
-            const statusFilter = document.getElementById('status-filter');
-            
-            function applyFilters() {
-                const selectedUser = userFilter.value;
-                const selectedStatus = statusFilter.value;
-                
-                // Buat URL dengan parameter query yang benar
-                const query = new URLSearchParams({
-                    user: selectedUser,
-                    status: selectedStatus
-                });
-
-                // Ganti URL browser dengan parameter baru, yang akan me-reload halaman
-                window.location.search = query.toString();
-            }
-
-            userFilter.addEventListener('change', applyFilters);
-            statusFilter.addEventListener('change', applyFilters);
-
-            // Logika Toggle Media
-            document.querySelectorAll('.toggle-checkbox').forEach(checkbox => {
-                checkbox.addEventListener('change', function() {
-                    const form = this.closest('form');
-                    const url = new URL(form.action);
-                    // Pertahankan query filter saat submit
-                    url.search = window.location.search; 
-                    form.action = url.toString();
-                    form.submit();
-                });
-            });
-
-            // Logika Modal Hapus
-            const deleteModal = document.getElementById('delete-modal');
-            const cancelDeleteBtn = document.getElementById('cancel-delete-btn');
-            const deleteForm = document.getElementById('delete-form');
-            const deleteAccountName = document.getElementById('delete-account-name');
-
-            const openDeleteModal = (accountId, accountName) => {
-                deleteAccountName.textContent = accountName;
-                const url = new URL(`${window.location.origin}/admin/accounts/delete/${accountId}`);
-                // Pertahankan query filter saat submit
-                url.search = window.location.search; 
-                deleteForm.action = url.toString();
-                deleteModal.classList.remove('hidden');
-            };
-
-            cancelDeleteBtn.addEventListener('click', () => {
-                deleteModal.classList.add('hidden');
-            });
-
-            document.querySelectorAll('.delete-btn').forEach(btn => {
-                btn.addEventListener('click', (event) => {
-                    const accountId = event.target.dataset.accountId;
-                    const accountName = event.target.dataset.accountName;
-                    openDeleteModal(accountId, accountName);
-                });
-            });
-        });
-    </script>
+    <script src="/js/admin-dashboard.js" defer></script>
 </body>
 </html>
-

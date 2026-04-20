@@ -2,12 +2,14 @@ module.exports = {
   apps : [{
     name   : "whatsapp-gateway",
     script : "./server.js",
-    watch: false, // Nonaktifkan watch di produksi
-    max_memory_restart: '1G', // Restart jika memori > 1GB
-    min_uptime: '10s', // Minimal waktu proses berjalan sebelum dianggap sukses
-    max_restarts: 5, // Maksimal restart dalam interval waktu restart_time
-    restart_delay: 10000, // Delay antar restart (10 detik) - memberi waktu untuk database siap
-    exp_backoff_restart_delay: 100, // Waktu delay eksponensial saat restart gagal
+    watch: false,
+    max_memory_restart: '1G',
+    min_uptime: '10s',
+    max_restarts: 5,
+    restart_delay: 10000,
+    exp_backoff_restart_delay: 100,
+    kill_timeout: 10000,
+    listen_timeout: 10000,
     env_production: {
        NODE_ENV: "production"
     },

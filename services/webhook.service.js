@@ -1,33 +1,58 @@
-// services/webhook.service.js
 const axios = require('axios');
-const { Session } = require('../models');
+const { WhatsAppAccount } = require('../models');
 const logger = require('../config/logger');
 
-const sendWebhook = async (sessionId, type, data) => {
-    try {
-        // 1. Ambil data sesi dari database
-        const session = await Session.findByPk(sessionId);
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-        // 2. LOGIKA STRICT: Jika user tidak mengisi Webhook URL, BERHENTI.
-        // Jangan kirim kemanapun (Privasi terjaga).
-        if (!session || !session.webhookUrl) {
-            return; 
+const sanitizeWebhookData = (data) => {
+    if (!data || typeof data !== 'object') {
+        return data;
+    }
+
+    const sanitized = { ...data };
+    delete sanitized.accountId;
+    return sanitized;
+};
+
+const sendWebhook = async (type, data) => {
+    try {
+        const sessionId = data?.sessionId;
+        if (!sessionId) {
+            logger.warn('Webhook diabaikan karena sessionId tidak tersedia.');
+            return false;
         }
 
-        // 3. Jika ada URL, kirim pesan tersebut
+        const account = await WhatsAppAccount.findOne({ where: { sessionId } });
+        if (!account || !account.webhookUrl) {
+            return false;
+        }
+
         const payload = {
-            sessionId: sessionId,
-            type: type,
+            sessionId,
+            type,
             timestamp: new Date(),
-            data: data
+            data: sanitizeWebhookData(data),
         };
 
-        await axios.post(session.webhookUrl, payload);
-        // logger.info(`✅ Webhook terkirim ke: ${session.webhookUrl}`);
+        let lastError = null;
+        const maxAttempts = 3;
 
+        for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+            try {
+                await axios.post(account.webhookUrl, payload, { timeout: 10000 });
+                return true;
+            } catch (error) {
+                lastError = error;
+                if (attempt < maxAttempts) {
+                    await sleep(attempt * 1000);
+                }
+            }
+        }
+
+        throw lastError;
     } catch (error) {
-        // Error diam (agar log tidak penuh jika webhook user mati)
-        logger.error(`❌ Gagal kirim webhook sesi ${sessionId}: ${error.message}`);
+        logger.error(`❌ Gagal kirim webhook: ${error.message}`);
+        return false;
     }
 };
 
