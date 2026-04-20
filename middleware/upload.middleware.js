@@ -111,7 +111,12 @@ const handleMediaUpload = (req, res, next) => {
 
                 fs.writeFileSync(filePath, file.buffer);
 
-                req.file = { ...file, path: filePath, mimetype: actualMimeType };
+                req.file = {
+                    ...file,
+                    path: filePath,
+                    mimetype: actualMimeType,
+                    url: `/dashboard/uploads/${randomName}`,
+                };
             }
             
             // Teruskan informasi akun ke controller

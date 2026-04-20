@@ -248,7 +248,7 @@ const handleMessageUpsert = async (m, sock, accountId, emitSocketEvent) => {
 
             try {
                 const buffer = await downloadMediaMessage(msg, 'buffer', {});
-                const tempDir = path.join(__dirname, '..', '..', 'public', 'temp');
+                const tempDir = path.join(__dirname, '..', '..', 'temp');
                 if (!fs.existsSync(tempDir)) fs.mkdirSync(tempDir, { recursive: true });
 
                 let extension = 'bin';
@@ -292,11 +292,14 @@ const handleMessageUpsert = async (m, sock, accountId, emitSocketEvent) => {
                     else if (lowerOriginalFilename.endsWith('.csv')) extension = 'csv';
                 }
 
-                const fileName = `${Date.now()}-${msg.key.id.substring(0, 10)}.${extension}`;
+                const safeMessageId = String(msg.key.id || 'media')
+                    .replace(/[^a-zA-Z0-9]/g, '')
+                    .substring(0, 20) || 'media';
+                const fileName = `${Date.now()}-${safeMessageId}.${extension}`;
                 const tempFilePath = path.join(tempDir, fileName);
 
                 fs.writeFileSync(tempFilePath, buffer);
-                mediaUrl = `${process.env.BASE_URL}/temp/${fileName}`;
+                mediaUrl = `/dashboard/temp/${fileName}`;
 
                 setTimeout(() => {
                     if (fs.existsSync(tempFilePath)) {

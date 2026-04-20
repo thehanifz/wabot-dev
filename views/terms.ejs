@@ -29,7 +29,7 @@
             <p>Dengan mengklik "Saya Setuju dan Lanjutkan", Anda mengonfirmasi bahwa Anda telah membaca, memahami, dan setuju untuk mematuhi semua syarat dan ketentuan di atas.</p>
         </div>
 
-        <form action="/auth/terms" method="POST" class="mt-6">
+        <form action="/auth/terms/accept" method="POST" class="mt-6">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <button type="submit" class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
                 Saya Setuju dan Lanjutkan
@@ -38,4 +38,3 @@
     </div>
 </body>
 </html>
-

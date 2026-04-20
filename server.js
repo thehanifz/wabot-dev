@@ -101,7 +101,7 @@ const adminRoutes = require('./routes/admin.routes');
 const { ensureAuthenticated, ensureTermsAccepted } = require('./middleware/auth.middleware');
 
 app.use('/auth', authRoutes);
-app.use('/dashboard', ensureAuthenticated, ensureTermsAccepted, dashboardRoutes);
+app.use('/dashboard', dashboardRoutes);
 app.use('/users', ensureAuthenticated, ensureTermsAccepted, userRoutes);
 app.use('/admin', ensureAuthenticated, ensureTermsAccepted, adminRoutes);
 
@@ -115,13 +115,30 @@ app.get('/', (req, res) => {
 
 // === 7. ERROR HANDLING ===
 app.use((err, req, res, next) => {
+    const expectsJson =
+        req.xhr ||
+        req.path.startsWith('/api/') ||
+        req.headers.accept?.includes('application/json');
+
     if (err.code !== 'EBADCSRFTOKEN') {
-        console.error('🔥 CRITICAL ERROR:', err.stack || err);
-        logger.error('Terjadi error tak terduga:', err);
+        logger.error('Unhandled error:', err);
     }
 
     if (err.code === 'EBADCSRFTOKEN') {
+        if (expectsJson) {
+            return res.status(403).json({ error: 'CSRF token invalid. Refresh and retry.' });
+        }
         return res.status(403).send('<h1>403 - Forbidden</h1><p>Form expired. Silakan refresh halaman dan coba lagi.</p>');
+    }
+
+    if (expectsJson) {
+        if (process.env.NODE_ENV === 'production') {
+            return res.status(500).json({ error: 'An internal server error occurred.' });
+        }
+        return res.status(500).json({
+            error: err.message || 'Internal server error.',
+            stack: err.stack || String(err),
+        });
     }
 
     res.status(500).send(`
@@ -146,7 +163,7 @@ const cleanupOldFiles = () => {
     
     const cleanupDir = (dirPath, maxAgeHours = 24) => {
         try {
-            const fullPath = path.join(__dirname, 'public', dirPath);
+            const fullPath = path.join(__dirname, dirPath);
             if (!fs.existsSync(fullPath)) return;
             
             const files = fs.readdirSync(fullPath);
