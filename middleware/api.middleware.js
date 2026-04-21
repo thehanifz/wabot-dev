@@ -18,18 +18,29 @@ const validateApiKey = async (req, res, next) => {
         const account = await WhatsAppAccount.findOne({ where: { sessionId: sessionIdFromRequest } });
 
         if (!account) {
-            return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+            return res.status(401).json({ error: 'Akses ditolak.' });
         }
 
         const decryptedApiKeyFromDb = account.apiKey;
 
         if (decryptedApiKeyFromDb === null) {
-             logger.error(`[API Auth] Gagal mendekripsi API Key untuk sesi ${sessionIdFromRequest}.`);
-             return res.status(500).json({ error: 'Kesalahan konfigurasi keamanan internal.' });
+            logger.error(`[API Auth] Gagal mendekripsi API Key untuk sesi ${sessionIdFromRequest}.`);
+            return res.status(500).json({ error: 'Kesalahan konfigurasi keamanan internal.' });
         }
 
-        if (decryptedApiKeyFromDb !== apiKeyFromRequest) {
-            return res.status(403).json({ error: 'Akses ditolak. API Key tidak valid.' });
+        // REQ-15: Use constant-time comparison to prevent timing attacks
+        const keyFromDb = Buffer.from(decryptedApiKeyFromDb, 'utf8');
+        const keyFromRequest = Buffer.from(apiKeyFromRequest, 'utf8');
+        let keysMatch = false;
+        try {
+            keysMatch = keyFromDb.length === keyFromRequest.length &&
+                require('crypto').timingSafeEqual(keyFromDb, keyFromRequest);
+        } catch (e) {
+            keysMatch = false;
+        }
+
+        if (!keysMatch) {
+            return res.status(401).json({ error: 'Akses ditolak.' });
         }
 
         // ================== REVISI DI SINI ==================
@@ -38,7 +49,7 @@ const validateApiKey = async (req, res, next) => {
         // Simpan juga ID internal untuk kompatibilitas
         req.accountId = account.id;
         // =======================================================
-        
+
         next();
 
     } catch (error) {

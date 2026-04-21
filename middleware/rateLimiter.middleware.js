@@ -15,8 +15,11 @@ const createLimiter = (max, message) => rateLimit({
 
 const apiLimiter = createLimiter(50, 'Terlalu banyak permintaan dari IP Anda, silakan coba lagi setelah 15 menit.');
 const authLimiter = createLimiter(10, 'Terlalu banyak percobaan autentikasi. Silakan coba lagi setelah 15 menit.');
+// REQ-22: Add rate limiter for sensitive read endpoints (20 requests per 15 minutes)
+const sensitiveReadLimiter = createLimiter(20, 'Terlalu banyak permintaan ke endpoint sensitif. Coba lagi setelah 15 menit.');
 
 module.exports = {
     apiLimiter,
     authLimiter,
+    sensitiveReadLimiter,
 };

@@ -84,7 +84,8 @@ const processMessageQueue = async (emitSocketEvent, accountId) => {
  * Hapus file-file sementara secara berkala
  */
 const cleanupTempFiles = () => {
-    const tempDir = path.join(__dirname, '..', '..', 'public', 'temp');
+    // REQ-23: Fix path from 'public/temp' to 'temp' (root level)
+    const tempDir = path.join(__dirname, '..', '..', 'temp');
     if (!fs.existsSync(tempDir)) return;
 
     fs.readdir(tempDir, (err, files) => {
@@ -95,21 +96,58 @@ const cleanupTempFiles = () => {
 
         files.forEach(file => {
             const filePath = path.join(tempDir, file);
-            const stats = fs.statSync(filePath);
-            const now = new Date();
-            const fileTime = new Date(stats.mtime);
-            const diffMs = now - fileTime;
-            const diffMins = Math.floor(diffMs / 60000);
+            try {
+                const stats = fs.statSync(filePath);
+                const now = new Date();
+                const fileTime = new Date(stats.mtime);
+                const diffMs = now - fileTime;
+                const diffMins = Math.floor(diffMs / 60000);
 
-            if (diffMins > 5) {
-                fs.unlinkSync(filePath);
+                if (diffMins > 5) {
+                    fs.unlinkSync(filePath);
+                    logger.debug(`[Cleanup] Removed temp file: ${file}`);
+                }
+            } catch (error) {
+                logger.error(`[Cleanup] Error processing file ${file}: ${error.message}`);
             }
         });
     });
 };
 
+// REQ-23: Add startup cleanup to clear old files on server start (crash recovery)
+const startupCleanup = () => {
+    const tempDir = path.join(__dirname, '..', '..', 'temp');
+    if (!fs.existsSync(tempDir)) {
+        try {
+            fs.mkdirSync(tempDir, { recursive: true });
+        } catch (error) {
+            logger.error(`[Startup Cleanup] Error creating temp dir: ${error.message}`);
+            return;
+        }
+    }
+
+    const cutoff = Date.now() - 10 * 60 * 1000; // 10 minutes
+    try {
+        fs.readdirSync(tempDir).forEach(file => {
+            try {
+                const filePath = path.join(tempDir, file);
+                const stats = fs.statSync(filePath);
+                if (stats.mtimeMs < cutoff) {
+                    fs.unlinkSync(filePath);
+                    logger.info(`[Startup Cleanup] Removed old temp file: ${file}`);
+                }
+            } catch (error) {
+                logger.debug(`[Startup Cleanup] Error on file ${file}: ${error.message}`);
+            }
+        });
+    } catch (error) {
+        logger.error(`[Startup Cleanup] Error: ${error.message}`);
+    }
+};
+
+startupCleanup();
 cleanupTempFiles();
-setInterval(cleanupTempFiles, 21600000); // 6 jam
+setInterval(cleanupTempFiles, 21600000); // 6 hours
 
 const getMediaFromMessage = (message, messageType) => {
     if (!message || !messageType) return null;
@@ -126,7 +164,7 @@ const getMediaFromMessage = (message, messageType) => {
             for (const key in media.message) {
                 if (media.message[key] &&
                     (media.message[key].url || media.message[key].mediaKey || media.message[key].mimetype ||
-                     media.message[key].fileSha256 || media.message[key].fileEncSha256)) {
+                        media.message[key].fileSha256 || media.message[key].fileEncSha256)) {
                     return media.message[key];
                 }
             }

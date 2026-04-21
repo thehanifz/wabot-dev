@@ -27,8 +27,9 @@ const io = new Server(server);
 
 // === 1. MIDDLEWARE DASAR ===
 app.set('trust proxy', 1);
-app.use(express.urlencoded({ extended: true }));
-app.use(express.json());
+// REQ-24 & REQ-19: Add payload size limits to prevent DoS and disk exhaustion
+app.use(express.urlencoded({ extended: true, limit: '2mb' }));
+app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cookieParser());
 app.use(helmet.contentSecurityPolicy({
@@ -49,9 +50,9 @@ const sessionMiddleware = session({
     store: sessionStore,
     resave: false,
     saveUninitialized: false,
-    cookie: { 
-        httpOnly: true, 
-        secure: process.env.NODE_ENV === 'production', 
+    cookie: {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
         maxAge: 24 * 60 * 60 * 1000
     },
 });
@@ -160,12 +161,12 @@ process.on('uncaughtException', (error) => {
 // === 8. CLEANUP FILE SAMPAH ===
 const cleanupOldFiles = () => {
     const fs = require('fs');
-    
+
     const cleanupDir = (dirPath, maxAgeHours = 24) => {
         try {
             const fullPath = path.join(__dirname, dirPath);
             if (!fs.existsSync(fullPath)) return;
-            
+
             const files = fs.readdirSync(fullPath);
             files.forEach(file => {
                 try {
@@ -175,11 +176,11 @@ const cleanupOldFiles = () => {
                         fs.unlinkSync(filePath);
                         logger.info(`File lama dihapus: ${filePath}`);
                     }
-                } catch (e) {}
+                } catch (e) { }
             });
-        } catch (e) {}
+        } catch (e) { }
     };
-    
+
     cleanupDir('temp', 1);
     cleanupDir('uploads', 24);
 };
@@ -187,10 +188,10 @@ const cleanupOldFiles = () => {
 // === 9. START SERVER & DATABASE ===
 const PORT = process.env.PORT || 3000;
 
-waitForDatabaseReady(sequelize).then(() => sequelize.sync({ alter: true })).then(async () => { 
-    
+waitForDatabaseReady(sequelize).then(() => sequelize.sync({ alter: true })).then(async () => {
+
     logger.info('✅ Database Synced (alter: true)');
-    
+
     sessionStore.sync();
 
     try {
@@ -200,10 +201,10 @@ waitForDatabaseReady(sequelize).then(() => sequelize.sync({ alter: true })).then
     }
 
     cleanupOldFiles();
-    
+
     server.listen(PORT, async () => {
         logger.info(`🚀 Server berjalan di http://localhost:${PORT}`);
-        
+
         try {
             logger.info('🔄 Menginisialisasi layanan Baileys...');
             await BaileysService.init();

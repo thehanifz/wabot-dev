@@ -8,7 +8,7 @@ let fileTypeFromBuffer = null;
 
 try {
     ({ fileTypeFromBuffer } = require('file-type'));
-} catch (error) {}
+} catch (error) { }
 
 // Pengaturan default dari .env sebagai fallback
 const DEFAULT_MAX_SIZE_MB = parseInt(process.env.UPLOAD_MAX_SIZE_MB, 10) || 15;
@@ -30,7 +30,7 @@ const detectMimeFromMagicBytes = async (buffer, fallbackMime) => {
             if (detected?.mime) {
                 return detected.mime;
             }
-        } catch (error) {}
+        } catch (error) { }
     }
 
     if (buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) return 'image/jpeg';
@@ -74,14 +74,29 @@ const handleMediaUpload = (req, res, next) => {
             const account = await WhatsAppAccount.findOne({ where: { sessionId: sessionIdFromRequest } });
 
             if (!account) {
-                return res.status(404).json({ error: 'Sesi tidak ditemukan.' });
+                return res.status(401).json({ error: 'Akses ditolak.' });
             }
 
             const decryptedApiKeyFromDb = account.apiKey;
-            if (!decryptedApiKeyFromDb || decryptedApiKeyFromDb !== apiKeyFromRequest) {
-                return res.status(403).json({ error: 'Akses ditolak. API Key tidak valid.' });
+            if (!decryptedApiKeyFromDb) {
+                return res.status(401).json({ error: 'Akses ditolak.' });
             }
-            
+
+            // REQ-15: Use constant-time comparison to prevent timing attacks
+            const keyFromDb = Buffer.from(decryptedApiKeyFromDb, 'utf8');
+            const keyFromRequest = Buffer.from(apiKeyFromRequest, 'utf8');
+            let keysMatch = false;
+            try {
+                keysMatch = keyFromDb.length === keyFromRequest.length &&
+                    require('crypto').timingSafeEqual(keyFromDb, keyFromRequest);
+            } catch (e) {
+                keysMatch = false;
+            }
+
+            if (!keysMatch) {
+                return res.status(401).json({ error: 'Akses ditolak.' });
+            }
+
             // --- Validasi File & Izin Media ---
             const file = req.files && req.files.length > 0 ? req.files[0] : null;
 
@@ -118,7 +133,7 @@ const handleMediaUpload = (req, res, next) => {
                     url: `/dashboard/uploads/${randomName}`,
                 };
             }
-            
+
             // Teruskan informasi akun ke controller
             req.account = account;
             req.accountId = account.id;

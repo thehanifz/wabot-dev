@@ -9,7 +9,7 @@ const generateSessionId = async () => {
     const date = new Date();
     const year = date.getFullYear().toString().slice(-2);
     const month = (date.getMonth() + 1).toString().padStart(2, '0');
-    
+
     let sessionId;
     let isUnique = false;
     while (!isUnique) {
@@ -67,10 +67,11 @@ const validateWebhookUrl = (webhookUrl) => {
         throw invalidUrlError;
     }
 
-    if (!['http:', 'https:'].includes(parsedUrl.protocol)) {
-        const protocolError = new Error('Webhook URL harus menggunakan protokol http atau https.');
-        protocolError.statusCode = 400;
-        throw protocolError;
+    // REQ-20: Enforce HTTPS-only for webhook URLs (no HTTP allowed)
+    if (parsedUrl.protocol !== 'https:') {
+        const httpsError = new Error('Webhook URL harus menggunakan HTTPS. HTTP tidak diizinkan karena alasan keamanan.');
+        httpsError.statusCode = 400;
+        throw httpsError;
     }
 
     const hostname = parsedUrl.hostname.toLowerCase();
@@ -92,6 +93,23 @@ const validateWebhookUrl = (webhookUrl) => {
 const addAccount = async (req, res) => {
     const { name } = req.body;
     try {
+        // REQ-25: Validate and sanitize account name input
+        if (!name || typeof name !== 'string') {
+            req.flash('error_msg', 'Nama akun diperlukan.');
+            return res.redirect('/dashboard');
+        }
+
+        // Remove dangerous characters and strip HTML-like tags
+        const safeName = name
+            .trim()
+            .replace(/[<>"'&]/g, '')  // Remove dangerous HTML/JS characters
+            .slice(0, 100);            // Limit to 100 characters
+
+        if (safeName.length < 1) {
+            req.flash('error_msg', 'Nama akun tidak valid.');
+            return res.redirect('/dashboard');
+        }
+
         const currentUser = req.user;
         const currentAccountCount = await WhatsAppAccount.count({ where: { userId: currentUser.id } });
 
@@ -109,7 +127,7 @@ const addAccount = async (req, res) => {
         const newSessionId = await generateSessionId();
 
         await WhatsAppAccount.create({
-            name,
+            name: safeName,  // Use sanitized name
             sessionId: newSessionId,
             userId: req.user.id,
             status: 'disconnected',
@@ -152,6 +170,9 @@ const updateSettings = async (req, res) => {
         accountId = parseAccountId(req.params.accountId);
         const account = await WhatsAppAccount.findOne({ where: { id: accountId, userId: req.user.id } });
         if (account) {
+            // REQ-26: Log webhook URL changes for audit trail
+            const oldWebhookUrl = account.webhookUrl;
+
             const parsedMaxFileSize = maxFileSize ? parseInt(maxFileSize, 10) : null;
             let parsedAllowedMimeTypes = null;
             if (allowedMimeTypes) {
@@ -161,14 +182,30 @@ const updateSettings = async (req, res) => {
                 } else if (typeof allowedMimeTypes === 'string') {
                     typesArray = allowedMimeTypes.split(',').map(type => type.trim()).filter(type => type);
                 }
-                
+
                 if (typesArray.length > 0) {
                     parsedAllowedMimeTypes = typesArray;
                 }
             }
-            
+
+            const newWebhookUrl = validateWebhookUrl(webhookUrl);
+
+            // log changes only if webhook URL changed
+            if (oldWebhookUrl !== newWebhookUrl) {
+                logger.info('[AUDIT] webhookUrl changed', {
+                    userId: req.user.id,
+                    userEmail: req.user.email,
+                    accountId: account.id,
+                    sessionId: account.sessionId,
+                    oldDomain: oldWebhookUrl ? new URL(oldWebhookUrl).hostname : null,
+                    newDomain: newWebhookUrl ? new URL(newWebhookUrl).hostname : null,
+                    ip: req.ip,
+                    timestamp: new Date().toISOString(),
+                });
+            }
+
             await account.update({
-                webhookUrl: validateWebhookUrl(webhookUrl),
+                webhookUrl: newWebhookUrl,
                 apiKey,
                 maxFileSize: parsedMaxFileSize,
                 allowedMimeTypes: parsedAllowedMimeTypes
