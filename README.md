@@ -1,62 +1,151 @@
-# WA Gateway - Versi 3.8 (Edisi Ketangguhan Infrastruktur)
+# WA Gateway - Versi 3.9 (Edisi Keamanan & Hardening)
 
-Selamat datang di WA Gateway, sebuah platform layanan untuk mengelola beberapa akun WhatsApp secara terpusat. Dibangun di atas library Baileys, layanan ini menyediakan gateway WhatsApp multi-sesi yang andal dan siap diintegrasikan dengan sistem otomasi seperti n8n.
+Selamat datang di WA Gateway, sebuah platform layanan untuk mengelola beberapa akun WhatsApp secara terpusat. Dibangun di atas library Baileys, layanan ini menyediakan gateway WhatsApp multi-sesi yang andal, aman, dan siap diintegrasikan dengan sistem otomasi seperti n8n.
 
-**Versi 3.8** membawa peningkatan signifikan pada stabilitas sistem (**Resilience Update**). Aplikasi kini dilengkapi mekanisme cerdas untuk memastikan sinkronisasi data yang sempurna saat server dimulai ulang, mencegah hilangnya sesi akibat koneksi database yang belum siap.
-
-## ✨ Fitur Baru di v3.8
-
-### 🛡️ **Sistem Proteksi Database (Database Guard)**
-- **Smart Startup**: Layanan WA Gateway tidak akan memaksa berjalan sebelum Database PostgreSQL siap sepenuhnya. Ini mencegah error "Crash Loop" saat server baru menyala (reboot).
-- **Anti Ghost Session**: Menjamin status sesi WhatsApp dimuat dengan benar hanya setelah koneksi data stabil, menghindari kasus di mana sesi dianggap "hilang" padahal hanya gagal terhubung ke database.
-- **Auto-Retry Mechanism**: Jika koneksi database terputus, sistem akan melakukan percobaan koneksi ulang secara otomatis tanpa perlu restart manual.
+**Versi 3.9** merupakan rilis besar yang berfokus pada **security hardening end-to-end**. Update ini menutup berbagai celah keamanan kritis seperti timing attack, SSRF, enumeration, dan cross-tenant access, sehingga sistem kini jauh lebih aman untuk penggunaan production multi-user.
 
 ---
 
-## ✨ Fitur Utama Lainnya
+## 🔐 Fitur Baru di v3.9 (Security Hardening)
+
+### 🛡️ **Perlindungan API & Autentikasi**
+- **Constant-Time API Key Comparison**: Menggunakan `crypto.timingSafeEqual()` untuk mencegah timing attack saat validasi API key.
+- **Unified Auth Response (Anti-Enumeration)**: Semua kegagalan autentikasi kini selalu mengembalikan `401` dengan pesan generik.
+- **Tidak Bisa Dibedakan**: Penyerang tidak bisa membedakan apakah `sessionId` salah atau `apiKey` salah.
+
+---
+
+### 🌐 **Webhook Security & SSRF Protection**
+- **DNS Re-validation**: Validasi DNS dilakukan saat runtime sebelum mengirim webhook untuk mencegah DNS rebinding attack.
+- **Private IP Blocking**: Semua IP internal diblokir (127.0.0.1, 10.x, 192.168.x, dll).
+- **HTTPS-Only Webhook**: Hanya URL `https://` yang diizinkan.
+- **HMAC Signature (Optional)**: Webhook dapat dilengkapi signature `X-WA-Signature` (SHA256) untuk verifikasi integritas.
+
+---
+
+### ⚙️ **HTTP & Resource Hardening**
+- **Axios Hardening**:
+  - Timeout dikurangi menjadi 5 detik
+  - Maks response: 100KB
+  - Maks request: 500KB
+  - Redirect dinonaktifkan
+- **Payload Limit Global**: Maksimal request body 2MB
+- **Webhook Endpoint Limit**: Khusus `/webhook/wabot` dibatasi 64KB
+
+---
+
+### 📁 **Multi-Tenant Security**
+- **File Ownership Validation**:
+  - User hanya bisa akses file miliknya sendiri
+  - Berlaku untuk `/uploads/` dan `/temp/`
+- **Cross-Tenant Access Blocked**: Tidak bisa lagi akses file user lain
+
+---
+
+### 🚦 **Rate Limiting & Abuse Prevention**
+- **Sensitive Endpoint Rate Limit**:
+  - `/accounts/:id/settings` dibatasi 20 request / 15 menit
+- **Proteksi Brute Force & Data Scraping**
+
+---
+
+### 🧹 **Operational Security & Stability**
+- **Auto Cleanup Temp Files**:
+  - File temp dihapus setiap 6 jam
+  - Cleanup saat server startup
+- **Startup Recovery Improvement**
+- **Safer Logging**:
+  - Tidak lagi menyimpan full payload webhook ke log
+
+---
+
+### 🧾 **Audit & Monitoring**
+- **Webhook Change Audit Log**:
+  - Mencatat perubahan webhook URL
+  - Menyimpan domain lama & baru
+  - Menyertakan user, IP, dan timestamp
+- **Security Event Logging**:
+  - SSRF blocked
+  - Unauthorized file access
+
+---
+
+### 🧼 **Input Sanitization**
+- **Account Name Sanitization**:
+  - Menghapus karakter berbahaya (`< > " ' &`)
+  - Mencegah stored XSS
+
+---
+
+## ✨ Fitur Utama
 
 ### 🏢 **Fondasi Siap Publikasi**
-- **Database Skalabel**: Berjalan di atas **PostgreSQL**, memastikan performa tinggi untuk melayani banyak pengguna secara bersamaan.
-- **Halaman Depan Profesional**: Landing page informatif yang menjelaskan fitur dan manfaat layanan kepada pengunjung.
-- **Alur Syarat & Ketentuan**: Mewajibkan persetujuan "Terms of Service" bagi pengguna baru untuk perlindungan hukum penyedia layanan.
+- PostgreSQL database (scalable)
+- Landing page profesional
+- Terms of Service flow
 
 ### 👨‍👩‍👧‍👦 **Platform Multi-Pengguna**
-- **Login Terintegrasi**: Pendaftaran dan login mudah menggunakan akun Google (OAuth).
-- **Manajemen Mandiri**: Pelanggan memiliki dashboard pribadi untuk menambah, menghubungkan, dan memantau sesi WhatsApp mereka sendiri.
+- Login Google OAuth
+- Dashboard per user
+- Session management mandiri
 
-### 🎛️ **Panel Kontrol Admin**
-- **Kontrol Terpusat**: Mengelola seluruh pengguna dan sesi dari satu panel admin.
-- **Manajemen Kuota**: Mengatur batas jumlah sesi dan izin fitur (seperti pengiriman media) untuk setiap pelanggan secara spesifik.
+### 🎛️ **Panel Admin**
+- Kontrol semua user & session
+- Limit session per user
+- Toggle izin media
 
-### ⚙️ **Fitur Teknis Unggulan**
-- **Session ID Kustom**: Format ID yang mudah dibaca (`YYMMXXXX`) untuk kemudahan integrasi API.
-- **Konfigurasi Spesifik**: Setiap sesi memiliki `webhookUrl` dan `apiKey` unik.
-- **Antrian Pesan Cerdas**: Sistem antrian (queue) untuk mencegah pemblokiran akibat pengiriman pesan massal yang terlalu cepat.
-- **Monitoring Real-time**: Pantau status koneksi, scan QR code, dan log pesan secara langsung.
+### ⚙️ **Fitur Teknis**
+- Session ID custom (YYMMXXXX)
+- Webhook per session
+- API Key per session
+- Queue message anti-block
+- Monitoring real-time (Socket.IO)
 
 ---
 
 ## ⚠️ Disclaimer
-**Proyek ini bukan merupakan API resmi dari WhatsApp dan tidak didukung oleh Meta.** Aplikasi ini bekerja dengan mengotomatiskan WhatsApp Web menggunakan library Baileys. Penggunaan aplikasi ini untuk mengirim spam atau melanggar kebijakan WhatsApp dapat menyebabkan nomor Anda **diblokir secara permanen**.
+**Proyek ini bukan API resmi WhatsApp.**
 
-Gunakan dengan bijak dan bertanggung jawab. Pengembang tidak bertanggung jawab atas segala konsekuensi yang timbul dari penggunaan aplikasi ini.
+Aplikasi ini menggunakan WhatsApp Web automation (Baileys). Penggunaan untuk spam atau pelanggaran kebijakan dapat menyebabkan nomor diblokir permanen.
 
----
-
-## 🛠️ Tumpukan Teknologi
-- **Backend**: Node.js, Express.js
-- **Core Library**: @whiskeysockets/baileys
-- **Database**: PostgreSQL dengan Sequelize ORM
-- **Real-time**: Socket.IO
-- **Keamanan**: Passport.js (Google OAuth), Helmet, CSRF, Express Rate Limit
+Gunakan dengan bijak.
 
 ---
 
-## 🚀 Instalasi & Setup
+## 🛠️ Tech Stack
+- Node.js, Express.js
+- Baileys
+- PostgreSQL + Sequelize
+- Socket.IO
+- Passport.js (Google OAuth)
+- Security: Helmet, CSRF, Rate Limit
 
-Prasyarat: Node.js (v18+), npm (v10+), Git, dan PostgreSQL Database.
+---
 
-### 1. Kloning Repositori
+## 🚀 Instalasi
+
+### 1. Clone Repo
 ```bash
-git clone [https://github.com/thehanifz/th-whatsapp-gateway-3.5.git](https://github.com/thehanifz/th-whatsapp-gateway-3.5.git)
-cd wa-gateway
+git clone https://github.com/thehanifz/wabot-dev.git
+cd wabot-dev
+```
+
+### 2. Install
+```bash
+npm install
+```
+
+### 3. Setup Environment
+```bash
+cp .env.example .env
+```
+
+### 4. Run
+```bash
+npm start
+```
+
+---
+
+## ✅ Status
+✅ Production Ready (Security Hardened v3.9.0)
