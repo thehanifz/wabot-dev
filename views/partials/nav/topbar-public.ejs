@@ -1,0 +1,43 @@
+<%# nav/topbar-public.ejs — Navbar untuk landing page & terms (tidak butuh auth) %>
+
+<div class="navbar bg-base-100/80 backdrop-blur border-b border-base-300/60 sticky top-0 z-40">
+  <div class="navbar-start">
+    <!-- Mobile hamburger (opsional untuk landing dengan banyak section) -->
+    <div class="dropdown" x-data="{ open: false }">
+      <button class="btn btn-ghost btn-sm lg:hidden" @click="open = !open">
+        <i data-lucide="menu" class="w-5 h-5"></i>
+      </button>
+      <ul
+        x-show="open"
+        @click.outside="open = false"
+        class="menu menu-sm dropdown-content mt-3 z-[1] p-2 shadow-lg bg-base-100 rounded-xl w-48 border border-base-300"
+      >
+        <li><a href="#features">Fitur</a></li>
+        <li><a href="#security">Keamanan</a></li>
+        <li><a href="#usecases">Use Case</a></li>
+        <li><a href="/auth/terms">Terms</a></li>
+      </ul>
+    </div>
+    <!-- Logo -->
+    <a href="/" class="flex items-center gap-2 ml-1">
+      <div class="bg-brand-600 rounded-lg p-1.5">
+        <i data-lucide="message-circle" class="w-5 h-5 text-white"></i>
+      </div>
+      <span class="font-bold text-lg text-base-content tracking-tight">WA-Bot</span>
+    </a>
+  </div>
+
+  <div class="navbar-center hidden lg:flex">
+    <ul class="menu menu-horizontal px-1 gap-1 text-sm">
+      <li><a href="#features" class="rounded-lg">Fitur</a></li>
+      <li><a href="#security" class="rounded-lg">Keamanan</a></li>
+      <li><a href="#usecases" class="rounded-lg">Use Case</a></li>
+      <li><a href="/auth/terms" class="rounded-lg">Terms</a></li>
+    </ul>
+  </div>
+
+  <div class="navbar-end gap-2">
+    <a href="/auth/login" class="btn btn-ghost btn-sm">Login</a>
+    <a href="#cta" class="btn btn-primary btn-sm">Contact Sales</a>
+  </div>
+</div>

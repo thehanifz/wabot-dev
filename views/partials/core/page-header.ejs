@@ -1,0 +1,16 @@
+<%# core/page-header.ejs — Judul halaman + subtitle + slot CTA opsional %>
+<%# Param: pageTitle (string), pageSubtitle (string, opsional), pageAction (HTML string, opsional) %>
+
+<div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+  <div>
+    <h1 class="text-xl font-semibold text-base-content">
+      <%= typeof pageTitle !== 'undefined' ? pageTitle : '' %>
+    </h1>
+    <% if (typeof pageSubtitle !== 'undefined' && pageSubtitle) { %>
+    <p class="text-sm text-base-content/60 mt-0.5"><%= pageSubtitle %></p>
+    <% } %>
+  </div>
+  <% if (typeof pageAction !== 'undefined' && pageAction) { %>
+  <div class="shrink-0"><%- pageAction %></div>
+  <% } %>
+</div>
