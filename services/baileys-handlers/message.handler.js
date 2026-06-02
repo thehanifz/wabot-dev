@@ -337,7 +337,10 @@ const handleMessageUpsert = async (m, sock, accountId, emitSocketEvent) => {
                 const tempFilePath = path.join(tempDir, fileName);
 
                 fs.writeFileSync(tempFilePath, buffer);
-                mediaUrl = `/dashboard/temp/${fileName}`;
+                const baseUrl = (process.env.BASE_URL || '').replace(/\/$/, '');
+                mediaUrl = baseUrl
+                    ? `${baseUrl}/api/media/temp/${fileName}`
+                    : `/api/media/temp/${fileName}`;
 
                 setTimeout(() => {
                     if (fs.existsSync(tempFilePath)) {
