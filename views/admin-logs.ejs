@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="wabot">
+<head><%- include('partials/core/head', { title: 'System Logs' }) %></head>
+<body class="bg-base-200 min-h-screen">
+<div class="drawer lg:drawer-open">
+  <input id="app-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content flex flex-col min-h-screen">
+    <%- include('partials/nav/topbar-app') %>
+    <main class="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6">
+      <%- include('partials/core/flash-alert') %>
+      <%- include('partials/core/page-header', {
+        pageTitle: 'System Logs',
+        pageSubtitle: '50 log aktivitas terbaru di seluruh sistem.'
+      }) %>
+
+      <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+        <div class="card-body p-5">
+          <!-- Filter -->
+          <form method="GET" action="/admin/logs" class="flex flex-wrap gap-3 mb-5">
+            <select name="type" class="select select-sm select-bordered" onchange="this.form.submit()">
+              <option value=""        <%= filterType === ''         ? 'selected' : '' %>>Semua Tipe</option>
+              <option value="outgoing" <%= filterType === 'outgoing' ? 'selected' : '' %>>Outgoing</option>
+              <option value="incoming" <%= filterType === 'incoming' ? 'selected' : '' %>>Incoming</option>
+            </select>
+            <select name="status" class="select select-sm select-bordered" onchange="this.form.submit()">
+              <option value=""       <%= filterStatus === ''       ? 'selected' : '' %>>Semua Status</option>
+              <option value="sent"   <%= filterStatus === 'sent'   ? 'selected' : '' %>>Sent</option>
+              <option value="failed" <%= filterStatus === 'failed' ? 'selected' : '' %>>Failed</option>
+              <option value="pending"<%= filterStatus === 'pending'? 'selected' : '' %>>Pending</option>
+            </select>
+          </form>
+
+          <% if (logs && logs.length > 0) { %>
+          <div class="overflow-x-auto">
+            <table class="table table-xs">
+              <thead>
+                <tr class="text-xs text-base-content/50">
+                  <th>Waktu</th>
+                  <th>Tipe</th>
+                  <th>From / To</th>
+                  <th>Device</th>
+                  <th>Owner</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% logs.forEach(log => { %>
+                <% const d = log.data; %>
+                <% const acct = d.WhatsAppAccount; %>
+                <tr class="hover:bg-base-50">
+                  <td class="text-xs text-base-content/50 whitespace-nowrap">
+                    <%= new Date(log.createdAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) %>
+                  </td>
+                  <td>
+                    <% if (log.type === 'outgoing') { %>
+                    <span class="badge badge-success badge-xs">Out</span>
+                    <% } else { %>
+                    <span class="badge badge-info badge-xs">In</span>
+                    <% } %>
+                  </td>
+                  <td class="font-mono text-xs">
+                    <% if (log.type === 'outgoing') { %><%= d.recipient %><% } else { %><%= d.from || d.sender || '—' %><% } %>
+                  </td>
+                  <td class="text-xs text-base-content/60"><%= acct ? acct.name : '—' %></td>
+                  <td class="text-xs text-base-content/50">
+                    <% const owner = acct && acct.User; %>
+                    <%= owner ? (owner.name || owner.email) : '—' %>
+                  </td>
+                  <td>
+                    <% if (log.type === 'outgoing') { %>
+                      <% if (d.status === 'sent') { %><span class="badge badge-success badge-xs">sent</span>
+                      <% } else if (d.status === 'failed') { %><span class="badge badge-error badge-xs" title="<%= d.errorMessage || '' %>">failed</span>
+                      <% } else { %><span class="badge badge-warning badge-xs">pending</span><% } %>
+                    <% } else { %>
+                    <span class="badge badge-ghost badge-xs">received</span>
+                    <% } %>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+          <% } else { %>
+          <%- include('partials/core/empty-state', {
+            emptyIcon: 'scroll-text',
+            emptyTitle: 'Belum ada log',
+            emptyDesc: 'Log aktivitas akan muncul setelah ada pesan yang terkirim atau diterima.'
+          }) %>
+          <% } %>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="drawer-side z-40">
+    <label for="app-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    <%- include('partials/nav/sidebar-admin') %>
+  </div>
+</div>
+<%- include('partials/core/scripts', { loadSocketIO: false }) %>
+</body>
+</html>

@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="wabot">
+<head><%- include('partials/core/head', { title: 'My Devices' }) %></head>
+<body class="bg-base-200 min-h-screen">
+<div class="drawer lg:drawer-open">
+  <input id="app-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content flex flex-col min-h-screen">
+    <%- include('partials/nav/topbar-app') %>
+    <main class="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6">
+      <%- include('partials/core/flash-alert') %>
+      <%- include('partials/core/page-header', {
+        pageTitle: 'My Devices',
+        pageSubtitle: 'Kelola perangkat WhatsApp yang terhubung ke akun Anda.',
+        pageAction: '<a href="/accounts/add" class="btn btn-sm btn-primary gap-2"><i data-lucide="plus" class="w-4 h-4"></i>Add Device</a>'
+      }) %>
+
+      <% if (devices && devices.length > 0) { %>
+      <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <% devices.forEach(device => { %>
+        <div class="card bg-base-100 border border-base-300/70 shadow-sm hover:shadow-md transition-shadow">
+          <div class="card-body p-5">
+            <div class="flex items-start justify-between gap-3">
+              <div class="flex items-center gap-3">
+                <div class="bg-brand-50 rounded-xl p-2.5 shrink-0">
+                  <i data-lucide="smartphone" class="w-5 h-5 text-brand-600"></i>
+                </div>
+                <div>
+                  <h3 class="font-semibold text-base-content text-sm"><%= device.name %></h3>
+                  <p class="text-xs text-base-content/50 font-mono"><%= device.sessionId %></p>
+                </div>
+              </div>
+              <% if (device.status === 'connected') { %>
+              <span class="badge badge-success badge-sm shrink-0 gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-current"></span>Connected
+              </span>
+              <% } else if (device.status === 'disconnected') { %>
+              <span class="badge badge-error badge-sm shrink-0">Disconnected</span>
+              <% } else { %>
+              <span class="badge badge-warning badge-sm shrink-0"><%= device.status %></span>
+              <% } %>
+            </div>
+
+            <div class="mt-3 pt-3 border-t border-base-200 flex items-center justify-between text-xs text-base-content/50">
+              <span>Media: <span class="font-medium <%= device.allowMedia ? 'text-success' : 'text-base-content/40' %>">
+                <%= device.allowMedia ? 'Enabled' : 'Disabled' %>
+              </span></span>
+              <span><%= device.lastConnectedAt ? new Date(device.lastConnectedAt).toLocaleDateString('id-ID') : 'Never' %></span>
+            </div>
+
+            <div class="mt-3 flex gap-2">
+              <% if (device.status !== 'connected') { %>
+              <form method="POST" action="/accounts/connect/<%= device.id %>" class="flex-1">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-success btn-sm w-full gap-1">
+                  <i data-lucide="plug" class="w-3.5 h-3.5"></i> Connect
+                </button>
+              </form>
+              <% } else { %>
+              <form method="POST" action="/accounts/disconnect/<%= device.id %>" class="flex-1">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button class="btn btn-outline btn-sm w-full gap-1">
+                  <i data-lucide="plug-zap" class="w-3.5 h-3.5"></i> Disconnect
+                </button>
+              </form>
+              <% } %>
+              <form method="POST" action="/accounts/delete/<%= device.id %>"
+                    @submit.prevent="$dispatch('open-confirm-modal', {
+                      title: 'Hapus Device',
+                      message: 'Yakin ingin menghapus device ini? Semua data terkait akan ikut terhapus.',
+                      confirmLabel: 'Ya, Hapus',
+                      onConfirm: () => $el.submit()
+                    })">
+                <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                <button type="button" class="btn btn-ghost btn-sm text-error" @click="$dispatch('open-confirm-modal', {
+                  title: 'Hapus Device',
+                  message: 'Yakin ingin menghapus device ini? Semua data terkait akan ikut terhapus.',
+                  confirmLabel: 'Ya, Hapus',
+                  onConfirm: () => $el.closest('form').submit()
+                })">
+                  <i data-lucide="trash-2" class="w-4 h-4"></i>
+                </button>
+              </form>
+            </div>
+          </div>
+        </div>
+        <% }) %>
+      </div>
+      <% } else { %>
+      <%- include('partials/core/empty-state', {
+        emptyIcon: 'smartphone',
+        emptyTitle: 'Belum ada device',
+        emptyDesc: 'Tambahkan perangkat WhatsApp pertama Anda untuk mulai mengirim pesan.',
+        emptyAction: '<a href="/accounts/add" class="btn btn-primary btn-sm gap-2"><i data-lucide="plus" class="w-4 h-4"></i>Add Device</a>'
+      }) %>
+      <% } %>
+
+      <%- include('partials/core/confirm-modal') %>
+    </main>
+  </div>
+  <div class="drawer-side z-40">
+    <label for="app-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    <%- include('partials/nav/sidebar-user') %>
+  </div>
+</div>
+<%- include('partials/core/scripts', { loadSocketIO: false }) %>
+</body>
+</html>
