@@ -24,20 +24,19 @@ const { waitForDatabaseReady } = require('./services/db-health-check.service');
 const app = express();
 const server = http.createServer(app);
 
-// H-04 FIX: Batasi Socket.IO hanya dari origin yang diizinkan via APP_BASE_URLS
-// Isi APP_BASE_URLS di .env, contoh: APP_BASE_URLS=https://yourdomain.com,https://app.yourdomain.com
-// Jika kosong (default dev), semua origin diterima — pastikan diisi di production!
-const allowedOrigins = (process.env.APP_BASE_URLS || '')
-    .split(',')
-    .map(origin => origin.trim())
-    .filter(Boolean);
+// H-04 FIX: Batasi Socket.IO hanya dari origin yang sama dengan BASE_URL
+// Pakai BASE_URL yang sudah ada di .env (sama yang dipakai Google OAuth callback).
+// Contoh: BASE_URL=https://wa.domain-anda.com
+const allowedOrigins = process.env.BASE_URL
+    ? [process.env.BASE_URL.trim().replace(/\/$/, '')]
+    : [];
 
 const io = new Server(server, {
     cors: {
         origin: (origin, callback) => {
-            // Izinkan koneksi tanpa origin (server-to-server / same-origin)
+            // Izinkan koneksi tanpa origin (same-origin browser request)
             if (!origin) return callback(null, true);
-            // Jika APP_BASE_URLS tidak diatur, izinkan semua (mode development)
+            // Jika BASE_URL tidak diatur, izinkan semua (fallback dev mode)
             if (allowedOrigins.length === 0) return callback(null, true);
             if (allowedOrigins.includes(origin)) return callback(null, true);
             logger.warn(`[Socket.IO] Origin ditolak: ${origin}`);
@@ -184,7 +183,6 @@ app.use((err, req, res, next) => {
 
     if (expectsJson) {
         // H-02 FIX: Jangan pernah kirim error.message atau stack ke client di production
-        // Di development pun hanya log ke server, tidak ke response
         return res.status(500).json({
             error: 'An internal server error occurred.',
         });
