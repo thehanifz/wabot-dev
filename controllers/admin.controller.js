@@ -5,14 +5,12 @@ const { Op } = require('sequelize');
 
 const getAdminDashboardPage = async (req, res) => {
     try {
-        // ================== LOGIKA FILTER BARU DI SINI ==================
         const { user: selectedUser = 'all', status: selectedStatus = 'all' } = req.query;
 
         const whereClause = {
-            userId: { [Op.ne]: null } // Selalu pastikan akun punya user
+            userId: { [Op.ne]: null }
         };
 
-        // Tambahkan filter status jika dipilih
         if (selectedStatus !== 'all') {
             if (selectedStatus === 'other') {
                 whereClause.status = { [Op.notIn]: ['connected', 'disconnected'] };
@@ -21,14 +19,12 @@ const getAdminDashboardPage = async (req, res) => {
             }
         }
 
-        // Tambahkan filter user jika dipilih
         const includeOptions = [{
             model: User,
             attributes: ['email'],
             where: selectedUser !== 'all' ? { email: selectedUser } : null,
-            required: selectedUser !== 'all' // Gunakan INNER JOIN jika user difilter
+            required: selectedUser !== 'all'
         }];
-        // =============================================================
 
         const accounts = await WhatsAppAccount.findAll({
             where: whereClause,
@@ -42,14 +38,28 @@ const getAdminDashboardPage = async (req, res) => {
             user: req.user,
             accounts: accounts,
             allUsers: allUsers,
-            selectedUser: selectedUser, // Kirim nilai filter ke view
-            selectedStatus: selectedStatus // Kirim nilai filter ke view
+            selectedUser: selectedUser,
+            selectedStatus: selectedStatus
         });
     } catch (error) {
         logger.error('Gagal memuat halaman admin panel:', error);
         req.flash('error_msg', 'Terjadi kesalahan saat memuat panel admin.');
         res.redirect('/dashboard');
     }
+};
+
+// H-01 FIX: Helper untuk membangun query string filter admin dari req.query
+// Hanya mengambil parameter yang diizinkan (allowlist) — tidak pernah menggunakan referer
+const buildSafeAdminQuery = (query) => {
+    const allowedParams = ['user', 'status'];
+    const params = new URLSearchParams();
+    for (const key of allowedParams) {
+        if (query[key] && typeof query[key] === 'string') {
+            params.set(key, query[key]);
+        }
+    }
+    const qs = params.toString();
+    return qs ? `?${qs}` : '';
 };
 
 const deleteAccountAsAdmin = async (req, res) => {
@@ -67,8 +77,8 @@ const deleteAccountAsAdmin = async (req, res) => {
         logger.error(`Gagal menghapus sesi ${accountId} oleh admin:`, error);
         req.flash('error_msg', 'Gagal menghapus sesi.');
     }
-    // Pertahankan filter saat redirect
-    res.redirect('/admin' + (req.headers.referer ? new URL(req.headers.referer).search : ''));
+    // H-01 FIX: Redirect aman berdasarkan req.query (allowlist), bukan referer
+    res.redirect('/admin' + buildSafeAdminQuery(req.query));
 };
 
 const toggleMedia = async (req, res) => {
@@ -87,8 +97,8 @@ const toggleMedia = async (req, res) => {
         logger.error('Gagal mengubah status media:', error);
         req.flash('error_msg', 'Gagal mengubah izin media.');
     }
-    // Pertahankan filter saat redirect
-    res.redirect('/admin' + (req.headers.referer ? new URL(req.headers.referer).search : ''));
+    // H-01 FIX: Redirect aman berdasarkan req.query (allowlist), bukan referer
+    res.redirect('/admin' + buildSafeAdminQuery(req.query));
 };
 
 module.exports = {
@@ -96,4 +106,3 @@ module.exports = {
     deleteAccountAsAdmin,
     toggleMedia,
 };
-

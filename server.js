@@ -8,6 +8,7 @@ const flash = require('connect-flash');
 const helmet = require('helmet');
 const csurf = require('csurf');
 const cookieParser = require('cookie-parser');
+const crypto = require('crypto');
 const { Server } = require("socket.io");
 
 const sequelize = require('./config/database');
@@ -23,25 +24,46 @@ const { waitForDatabaseReady } = require('./services/db-health-check.service');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// === H-04 FIX: Socket.IO dengan CORS restriction ke APP_URL saja ===
+const allowedOrigin = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+const io = new Server(server, {
+    cors: {
+        origin: allowedOrigin,
+        methods: ['GET', 'POST'],
+        credentials: true,
+    },
+    // Batasi payload per event untuk mencegah abuse
+    maxHttpBufferSize: 1e5, // 100 KB max per message
+});
 
 // === 1. MIDDLEWARE DASAR ===
 app.set('trust proxy', 1);
-// REQ-24 & REQ-19: Add payload size limits to prevent DoS and disk exhaustion
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cookieParser());
-app.use(helmet.contentSecurityPolicy({
-    directives: {
-        "default-src": ["'self'"],
-        "script-src": ["'self'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
-        "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
-        "img-src": ["'self'", "data:", "https://*"],
-        "connect-src": ["'self'", "ws:", "wss:"],
-        "font-src": ["'self'", "https://cdnjs.cloudflare.com"]
-    },
-}));
+
+// CSP FIX: Hilangkan unsafe-inline dengan menggunakan nonce untuk style inline
+// Nonce di-generate per-request dan di-inject ke res.locals
+app.use((req, res, next) => {
+    res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
+    next();
+});
+
+app.use((req, res, next) => {
+    helmet.contentSecurityPolicy({
+        directives: {
+            "default-src": ["'self'"],
+            "script-src": ["'self'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
+            // CSP MEDIUM FIX: Ganti 'unsafe-inline' dengan nonce
+            "style-src": ["'self'", `'nonce-${res.locals.cspNonce}'`, "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+            "img-src": ["'self'", "data:", "https://*"],
+            "connect-src": ["'self'", "ws:", "wss:"],
+            "font-src": ["'self'", "https://cdnjs.cloudflare.com"]
+        },
+    })(req, res, next);
+});
 
 // === 2. SESI DATABASE ===
 const sessionStore = new SequelizeStore({ db: sequelize });
@@ -62,6 +84,36 @@ app.use(sessionMiddleware);
 // Bagikan sesi Express ke Socket.IO agar socket bisa membaca session.passport.user
 io.use((socket, next) => {
     sessionMiddleware(socket.request, {}, next);
+});
+
+// H-04 FIX: Wajib authenticated untuk bisa terkoneksi ke Socket.IO
+io.use((socket, next) => {
+    const session = socket.request.session;
+    if (session && session.passport && session.passport.user) {
+        return next();
+    }
+    return next(new Error('Unauthorized: Sesi tidak valid.'));
+});
+
+// H-04 FIX: Rate limiting per socket — max 60 events/menit
+io.use((socket, next) => {
+    let eventCount = 0;
+    const WINDOW_MS = 60 * 1000;
+    const MAX_EVENTS = 60;
+
+    setInterval(() => { eventCount = 0; }, WINDOW_MS);
+
+    const originalOnEvent = socket.onevent.bind(socket);
+    socket.onevent = function (packet) {
+        eventCount++;
+        if (eventCount > MAX_EVENTS) {
+            logger.warn(`[Socket.IO] Rate limit terlampaui untuk socket ${socket.id}`);
+            socket.emit('error', { message: 'Rate limit exceeded. Coba lagi nanti.' });
+            return;
+        }
+        originalOnEvent(packet);
+    };
+    next();
 });
 
 // Inisialisasi Socket.io & Passport
@@ -204,6 +256,7 @@ waitForDatabaseReady(sequelize).then(() => sequelize.sync({ alter: true })).then
 
     server.listen(PORT, async () => {
         logger.info(`🚀 Server berjalan di http://localhost:${PORT}`);
+        logger.info(`🔒 Socket.IO CORS dibatasi ke origin: ${allowedOrigin}`);
 
         try {
             logger.info('🔄 Menginisialisasi layanan Baileys...');

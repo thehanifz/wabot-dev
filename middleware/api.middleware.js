@@ -21,9 +21,11 @@ const validateApiKey = async (req, res, next) => {
             return res.status(401).json({ error: 'Akses ditolak.' });
         }
 
+        // C-02 FIX: account.apiKey sudah auto-dekripsi via getter di model.
+        // Pastikan hasilnya tidak null sebelum comparasi (null = enkripsi gagal / data korup)
         const decryptedApiKeyFromDb = account.apiKey;
 
-        if (decryptedApiKeyFromDb === null) {
+        if (!decryptedApiKeyFromDb) {
             logger.error(`[API Auth] Gagal mendekripsi API Key untuk sesi ${sessionIdFromRequest}.`);
             return res.status(500).json({ error: 'Kesalahan konfigurasi keamanan internal.' });
         }
@@ -43,12 +45,8 @@ const validateApiKey = async (req, res, next) => {
             return res.status(401).json({ error: 'Akses ditolak.' });
         }
 
-        // ================== REVISI DI SINI ==================
-        // Simpan seluruh objek akun ke request agar bisa diakses di controller
         req.account = account;
-        // Simpan juga ID internal untuk kompatibilitas
         req.accountId = account.id;
-        // =======================================================
 
         next();
 
@@ -61,4 +59,3 @@ const validateApiKey = async (req, res, next) => {
 module.exports = {
     validateApiKey,
 };
-
