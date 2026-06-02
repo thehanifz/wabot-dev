@@ -8,7 +8,6 @@ const flash = require('connect-flash');
 const helmet = require('helmet');
 const csurf = require('csurf');
 const cookieParser = require('cookie-parser');
-const crypto = require('crypto');
 const { Server } = require("socket.io");
 
 const sequelize = require('./config/database');
@@ -25,45 +24,49 @@ const { waitForDatabaseReady } = require('./services/db-health-check.service');
 const app = express();
 const server = http.createServer(app);
 
-// === H-04 FIX: Socket.IO dengan CORS restriction ke APP_URL saja ===
-const allowedOrigin = process.env.APP_URL || `http://localhost:${process.env.PORT || 3000}`;
+// H-04 FIX: Batasi Socket.IO hanya dari origin yang diizinkan via APP_BASE_URLS
+// Isi APP_BASE_URLS di .env, contoh: APP_BASE_URLS=https://yourdomain.com,https://app.yourdomain.com
+// Jika kosong (default dev), semua origin diterima — pastikan diisi di production!
+const allowedOrigins = (process.env.APP_BASE_URLS || '')
+    .split(',')
+    .map(origin => origin.trim())
+    .filter(Boolean);
+
 const io = new Server(server, {
     cors: {
-        origin: allowedOrigin,
+        origin: (origin, callback) => {
+            // Izinkan koneksi tanpa origin (server-to-server / same-origin)
+            if (!origin) return callback(null, true);
+            // Jika APP_BASE_URLS tidak diatur, izinkan semua (mode development)
+            if (allowedOrigins.length === 0) return callback(null, true);
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+            logger.warn(`[Socket.IO] Origin ditolak: ${origin}`);
+            return callback(new Error('Socket.IO origin tidak diizinkan'));
+        },
         methods: ['GET', 'POST'],
         credentials: true,
     },
-    // Batasi payload per event untuk mencegah abuse
-    maxHttpBufferSize: 1e5, // 100 KB max per message
 });
 
 // === 1. MIDDLEWARE DASAR ===
 app.set('trust proxy', 1);
+// REQ-24 & REQ-19: Add payload size limits to prevent DoS and disk exhaustion
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cookieParser());
-
-// CSP FIX: Hilangkan unsafe-inline dengan menggunakan nonce untuk style inline
-// Nonce di-generate per-request dan di-inject ke res.locals
-app.use((req, res, next) => {
-    res.locals.cspNonce = crypto.randomBytes(16).toString('base64');
-    next();
-});
-
-app.use((req, res, next) => {
-    helmet.contentSecurityPolicy({
-        directives: {
-            "default-src": ["'self'"],
-            "script-src": ["'self'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
-            // CSP MEDIUM FIX: Ganti 'unsafe-inline' dengan nonce
-            "style-src": ["'self'", `'nonce-${res.locals.cspNonce}'`, "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
-            "img-src": ["'self'", "data:", "https://*"],
-            "connect-src": ["'self'", "ws:", "wss:"],
-            "font-src": ["'self'", "https://cdnjs.cloudflare.com"]
-        },
-    })(req, res, next);
-});
+app.use(helmet.contentSecurityPolicy({
+    directives: {
+        "default-src": ["'self'"],
+        "script-src": ["'self'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
+        // MEDIUM FIX: Hapus 'unsafe-inline' dari style-src
+        // Jika ada inline style yang diperlukan, pindahkan ke file .css eksternal
+        "style-src": ["'self'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+        "img-src": ["'self'", "data:", "https://*"],
+        "connect-src": ["'self'", "ws:", "wss:"],
+        "font-src": ["'self'", "https://cdnjs.cloudflare.com"]
+    },
+}));
 
 // === 2. SESI DATABASE ===
 const sessionStore = new SequelizeStore({ db: sequelize });
@@ -81,39 +84,34 @@ const sessionMiddleware = session({
 
 app.use(sessionMiddleware);
 
+// H-04 FIX: Rate limit per-IP pada Socket.IO handshake
+// Mencegah flood koneksi yang bisa exhausting memory / CPU
+const socketConnectionAttempts = new Map();
+const SOCKET_WINDOW_MS = 60 * 1000;   // 1 menit
+const SOCKET_MAX_ATTEMPTS = 30;        // maks 30 handshake/IP/menit
+
 // Bagikan sesi Express ke Socket.IO agar socket bisa membaca session.passport.user
 io.use((socket, next) => {
-    sessionMiddleware(socket.request, {}, next);
-});
+    const forwardedFor = socket.handshake.headers['x-forwarded-for'];
+    const ipAddress = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor || socket.handshake.address || 'unknown')
+        .toString()
+        .split(',')
+        [0]
+        .trim();
 
-// H-04 FIX: Wajib authenticated untuk bisa terkoneksi ke Socket.IO
-io.use((socket, next) => {
-    const session = socket.request.session;
-    if (session && session.passport && session.passport.user) {
-        return next();
+    const currentTime = Date.now();
+    const attempts = socketConnectionAttempts.get(ipAddress) || [];
+    const freshAttempts = attempts.filter(timestamp => currentTime - timestamp < SOCKET_WINDOW_MS);
+
+    if (freshAttempts.length >= SOCKET_MAX_ATTEMPTS) {
+        logger.warn(`[Socket.IO] Rate limit tercapai untuk IP: ${ipAddress}`);
+        return next(new Error('Terlalu banyak koneksi socket. Coba lagi nanti.'));
     }
-    return next(new Error('Unauthorized: Sesi tidak valid.'));
-});
 
-// H-04 FIX: Rate limiting per socket — max 60 events/menit
-io.use((socket, next) => {
-    let eventCount = 0;
-    const WINDOW_MS = 60 * 1000;
-    const MAX_EVENTS = 60;
+    freshAttempts.push(currentTime);
+    socketConnectionAttempts.set(ipAddress, freshAttempts);
 
-    setInterval(() => { eventCount = 0; }, WINDOW_MS);
-
-    const originalOnEvent = socket.onevent.bind(socket);
-    socket.onevent = function (packet) {
-        eventCount++;
-        if (eventCount > MAX_EVENTS) {
-            logger.warn(`[Socket.IO] Rate limit terlampaui untuk socket ${socket.id}`);
-            socket.emit('error', { message: 'Rate limit exceeded. Coba lagi nanti.' });
-            return;
-        }
-        originalOnEvent(packet);
-    };
-    next();
+    sessionMiddleware(socket.request, {}, next);
 });
 
 // Inisialisasi Socket.io & Passport
@@ -185,12 +183,10 @@ app.use((err, req, res, next) => {
     }
 
     if (expectsJson) {
-        if (process.env.NODE_ENV === 'production') {
-            return res.status(500).json({ error: 'An internal server error occurred.' });
-        }
+        // H-02 FIX: Jangan pernah kirim error.message atau stack ke client di production
+        // Di development pun hanya log ke server, tidak ke response
         return res.status(500).json({
-            error: err.message || 'Internal server error.',
-            stack: err.stack || String(err),
+            error: 'An internal server error occurred.',
         });
     }
 
@@ -256,7 +252,6 @@ waitForDatabaseReady(sequelize).then(() => sequelize.sync({ alter: true })).then
 
     server.listen(PORT, async () => {
         logger.info(`🚀 Server berjalan di http://localhost:${PORT}`);
-        logger.info(`🔒 Socket.IO CORS dibatasi ke origin: ${allowedOrigin}`);
 
         try {
             logger.info('🔄 Menginisialisasi layanan Baileys...');

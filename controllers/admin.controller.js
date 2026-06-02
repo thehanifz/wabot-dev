@@ -3,14 +3,51 @@ const BaileysService = require('../services/baileys.service');
 const logger = require('../config/logger');
 const { Op } = require('sequelize');
 
+// H-01 FIX: Helper redirect aman — hanya ambil query params yang diizinkan (user & status),
+// pastikan path target selalu di bawah /admin, tidak ikuti redirect ke domain eksternal.
+const getSafeAdminRedirectTarget = (req) => {
+    const fallback = '/admin';
+    const referer = req.headers.referer;
+
+    if (!referer) {
+        return fallback;
+    }
+
+    try {
+        // Parse referer sebagai URL relatif terhadap localhost (bukan redirect ke sana)
+        const refererUrl = new URL(referer, 'http://localhost');
+
+        // Pastikan path-nya di bawah /admin, tidak kemana-mana
+        if (!refererUrl.pathname.startsWith('/admin')) {
+            return fallback;
+        }
+
+        // Hanya izinkan query params whitelist
+        const safeParams = new URLSearchParams();
+        const userParam = refererUrl.searchParams.get('user');
+        const statusParam = refererUrl.searchParams.get('status');
+
+        if (userParam) safeParams.set('user', userParam);
+        if (statusParam) safeParams.set('status', statusParam);
+
+        const query = safeParams.toString();
+        return query ? `${fallback}?${query}` : fallback;
+    } catch (error) {
+        logger.warn('[Admin] Referer header tidak valid, gunakan redirect default.', { referer });
+        return fallback;
+    }
+};
+
 const getAdminDashboardPage = async (req, res) => {
     try {
+        // ================== LOGIKA FILTER BARU DI SINI ==================
         const { user: selectedUser = 'all', status: selectedStatus = 'all' } = req.query;
 
         const whereClause = {
-            userId: { [Op.ne]: null }
+            userId: { [Op.ne]: null } // Selalu pastikan akun punya user
         };
 
+        // Tambahkan filter status jika dipilih
         if (selectedStatus !== 'all') {
             if (selectedStatus === 'other') {
                 whereClause.status = { [Op.notIn]: ['connected', 'disconnected'] };
@@ -19,12 +56,14 @@ const getAdminDashboardPage = async (req, res) => {
             }
         }
 
+        // Tambahkan filter user jika dipilih
         const includeOptions = [{
             model: User,
             attributes: ['email'],
             where: selectedUser !== 'all' ? { email: selectedUser } : null,
-            required: selectedUser !== 'all'
+            required: selectedUser !== 'all' // Gunakan INNER JOIN jika user difilter
         }];
+        // =============================================================
 
         const accounts = await WhatsAppAccount.findAll({
             where: whereClause,
@@ -38,28 +77,14 @@ const getAdminDashboardPage = async (req, res) => {
             user: req.user,
             accounts: accounts,
             allUsers: allUsers,
-            selectedUser: selectedUser,
-            selectedStatus: selectedStatus
+            selectedUser: selectedUser, // Kirim nilai filter ke view
+            selectedStatus: selectedStatus // Kirim nilai filter ke view
         });
     } catch (error) {
         logger.error('Gagal memuat halaman admin panel:', error);
         req.flash('error_msg', 'Terjadi kesalahan saat memuat panel admin.');
         res.redirect('/dashboard');
     }
-};
-
-// H-01 FIX: Helper untuk membangun query string filter admin dari req.query
-// Hanya mengambil parameter yang diizinkan (allowlist) — tidak pernah menggunakan referer
-const buildSafeAdminQuery = (query) => {
-    const allowedParams = ['user', 'status'];
-    const params = new URLSearchParams();
-    for (const key of allowedParams) {
-        if (query[key] && typeof query[key] === 'string') {
-            params.set(key, query[key]);
-        }
-    }
-    const qs = params.toString();
-    return qs ? `?${qs}` : '';
 };
 
 const deleteAccountAsAdmin = async (req, res) => {
@@ -77,8 +102,8 @@ const deleteAccountAsAdmin = async (req, res) => {
         logger.error(`Gagal menghapus sesi ${accountId} oleh admin:`, error);
         req.flash('error_msg', 'Gagal menghapus sesi.');
     }
-    // H-01 FIX: Redirect aman berdasarkan req.query (allowlist), bukan referer
-    res.redirect('/admin' + buildSafeAdminQuery(req.query));
+    // H-01 FIX: Gunakan redirect aman, jangan ikuti referer mentah
+    res.redirect(getSafeAdminRedirectTarget(req));
 };
 
 const toggleMedia = async (req, res) => {
@@ -97,8 +122,8 @@ const toggleMedia = async (req, res) => {
         logger.error('Gagal mengubah status media:', error);
         req.flash('error_msg', 'Gagal mengubah izin media.');
     }
-    // H-01 FIX: Redirect aman berdasarkan req.query (allowlist), bukan referer
-    res.redirect('/admin' + buildSafeAdminQuery(req.query));
+    // H-01 FIX: Gunakan redirect aman, jangan ikuti referer mentah
+    res.redirect(getSafeAdminRedirectTarget(req));
 };
 
 module.exports = {

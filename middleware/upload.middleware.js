@@ -4,6 +4,7 @@ const fs = require('fs');
 const crypto = require('crypto');
 const logger = require('../config/logger');
 const { WhatsAppAccount } = require('../models');
+const CryptoService = require('../services/crypto.service');
 let fileTypeFromBuffer = null;
 
 try {
@@ -76,8 +77,8 @@ const handleMediaUpload = (req, res, next) => {
                 return res.status(401).json({ error: 'Akses ditolak.' });
             }
 
-            // C-02 FIX: Pastikan dekripsi berhasil (non-null) sebelum comparasi
-            const decryptedApiKeyFromDb = account.apiKey;
+            // C-02 FIX: Dekripsi API key dari DB sebelum dibandingkan
+            const decryptedApiKeyFromDb = CryptoService.decrypt(account.apiKey);
             if (!decryptedApiKeyFromDb) {
                 logger.error(`[Upload Auth] Gagal mendekripsi API Key untuk sesi ${sessionIdFromRequest}.`);
                 return res.status(500).json({ error: 'Kesalahan konfigurasi keamanan internal.' });

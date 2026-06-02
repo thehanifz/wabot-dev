@@ -11,6 +11,7 @@ const { sendMessageJson, sendMessageMultipart, getMessages } = require('../contr
 const { ensureAuthenticated } = require('../middleware/auth.middleware');
 const mimeTypeList = require('../config/mimetype');
 const logger = require('../config/logger');
+const CryptoService = require('../services/crypto.service');
 
 router.post('/send', validateApiKey, sendMessageJson);
 
@@ -75,7 +76,10 @@ router.get('/media/temp/:filename', async (req, res) => {
             for (const acc of allAccounts) {
                 if (!acc.apiKey) continue;
                 try {
-                    const keyFromDb = Buffer.from(acc.apiKey, 'utf8');
+                    // C-02 FIX: Dekripsi API key dari DB sebelum dibandingkan
+                    const decryptedKey = CryptoService.decrypt(acc.apiKey);
+                    if (!decryptedKey) continue;
+                    const keyFromDb = Buffer.from(decryptedKey, 'utf8');
                     const keyFromReq = Buffer.from(apiKeyFromRequest, 'utf8');
                     if (keyFromDb.length === keyFromReq.length && crypto.timingSafeEqual(keyFromDb, keyFromReq)) {
                         account = acc;
@@ -84,8 +88,8 @@ router.get('/media/temp/:filename', async (req, res) => {
                 } catch (e) { /* skip */ }
             }
         } else {
-            // Verifikasi key untuk akun yang ditemukan
-            const decryptedApiKey = account.apiKey;
+            // C-02 FIX: Dekripsi API key dari DB sebelum dibandingkan
+            const decryptedApiKey = CryptoService.decrypt(account.apiKey);
             if (!decryptedApiKey) {
                 return res.status(500).json({ error: 'Kesalahan konfigurasi keamanan internal.' });
             }
@@ -129,5 +133,3 @@ router.get('/media/temp/:filename', async (req, res) => {
 
 
 module.exports = router;
-
-
