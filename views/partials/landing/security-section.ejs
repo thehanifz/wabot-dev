@@ -1,0 +1,51 @@
+<%# landing/security-section.ejs %>
+<section id="security" class="bg-base-200/50 py-20">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6">
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      <div>
+        <span class="text-brand-600 text-sm font-semibold uppercase tracking-wider">Keamanan</span>
+        <h2 class="text-3xl sm:text-4xl font-bold text-base-content mt-2 mb-4">Dibangun dengan Keamanan sebagai Prioritas</h2>
+        <p class="text-base-content/60 mb-8">Setiap lapisan aplikasi dirancang dengan mempertimbangkan ancaman nyata — dari autentikasi hingga komunikasi API.</p>
+        <ul class="space-y-4">
+          <li class="flex items-start gap-3">
+            <div class="bg-brand-100 rounded-full p-1.5 shrink-0 mt-0.5"><i data-lucide="shield-check" class="w-4 h-4 text-brand-600"></i></div>
+            <div><span class="font-semibold text-base-content text-sm">Autentikasi Google OAuth 2.0</span><p class="text-sm text-base-content/55 mt-0.5">Login aman via Google tanpa menyimpan password di sistem.</p></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <div class="bg-brand-100 rounded-full p-1.5 shrink-0 mt-0.5"><i data-lucide="lock" class="w-4 h-4 text-brand-600"></i></div>
+            <div><span class="font-semibold text-base-content text-sm">CSRF Protection</span><p class="text-sm text-base-content/55 mt-0.5">Setiap form dilindungi token CSRF via <code class="text-xs bg-base-200 px-1 rounded">csurf</code>.</p></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <div class="bg-brand-100 rounded-full p-1.5 shrink-0 mt-0.5"><i data-lucide="gauge" class="w-4 h-4 text-brand-600"></i></div>
+            <div><span class="font-semibold text-base-content text-sm">Rate Limiting</span><p class="text-sm text-base-content/55 mt-0.5">API dan endpoint kritis dilindungi rate limiter untuk mencegah abuse.</p></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <div class="bg-brand-100 rounded-full p-1.5 shrink-0 mt-0.5"><i data-lucide="key" class="w-4 h-4 text-brand-600"></i></div>
+            <div><span class="font-semibold text-base-content text-sm">API Key Terenkripsi</span><p class="text-sm text-base-content/55 mt-0.5">API key disimpan terenkripsi di database, bukan plaintext.</p></div>
+          </li>
+          <li class="flex items-start gap-3">
+            <div class="bg-brand-100 rounded-full p-1.5 shrink-0 mt-0.5"><i data-lucide="webhook" class="w-4 h-4 text-brand-600"></i></div>
+            <div><span class="font-semibold text-base-content text-sm">Webhook HMAC Signature</span><p class="text-sm text-base-content/55 mt-0.5">Payload webhook ditandatangani HMAC-SHA256 untuk verifikasi penerima.</p></div>
+          </li>
+        </ul>
+      </div>
+      <div class="relative">
+        <div class="card bg-base-100 shadow-xl border border-base-300/50 p-6">
+          <div class="flex items-center gap-3 mb-5">
+            <div class="bg-emerald-100 rounded-xl p-2"><i data-lucide="shield" class="w-6 h-6 text-emerald-600"></i></div>
+            <div><p class="font-semibold text-base-content">Security Status</p><p class="text-xs text-base-content/50">Semua lapisan aktif</p></div>
+            <div class="badge badge-success gap-1 ml-auto text-xs">Protected</div>
+          </div>
+          <ul class="space-y-3">
+            <% [['OAuth 2.0','Active'],['CSRF Token','Active'],['Rate Limiter','Active'],['Encrypted API Keys','Active'],['HMAC Webhook','Active'],['Content Security Policy','Active']].forEach(([label,status]) => { %>
+            <li class="flex items-center justify-between text-sm">
+              <span class="text-base-content/70"><%= label %></span>
+              <span class="badge badge-success badge-sm"><%= status %></span>
+            </li>
+            <% }) %>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

@@ -1,0 +1,29 @@
+<%# dashboard-admin/admin-actions.ejs %>
+<div class="card bg-base-100 border border-base-300/70 shadow-sm h-full">
+  <div class="card-body p-5">
+    <h3 class="font-semibold text-base-content mb-4">Admin Actions</h3>
+    <div class="flex flex-col gap-2">
+
+      <a href="/admin/users/new" class="btn btn-outline btn-sm justify-start gap-3 font-normal">
+        <div class="bg-brand-50 rounded-lg p-1"><i data-lucide="user-plus" class="w-4 h-4 text-brand-600"></i></div>
+        Tambah User
+      </a>
+
+      <a href="/admin/devices" class="btn btn-outline btn-sm justify-start gap-3 font-normal">
+        <div class="bg-success/10 rounded-lg p-1"><i data-lucide="smartphone" class="w-4 h-4 text-success"></i></div>
+        Kelola Semua Device
+      </a>
+
+      <a href="/admin/logs" class="btn btn-outline btn-sm justify-start gap-3 font-normal">
+        <div class="bg-indigo-50 rounded-lg p-1"><i data-lucide="scroll-text" class="w-4 h-4 text-indigo-500"></i></div>
+        Buka System Logs
+      </a>
+
+      <a href="/admin/settings" class="btn btn-outline btn-sm justify-start gap-3 font-normal">
+        <div class="bg-base-200 rounded-lg p-1"><i data-lucide="settings-2" class="w-4 h-4 text-base-content/50"></i></div>
+        Konfigurasi Sistem
+      </a>
+
+    </div>
+  </div>
+</div>

@@ -1,0 +1,29 @@
+<%# dashboard-user/quick-actions.ejs %>
+<div class="card bg-base-100 border border-base-300/70 shadow-sm h-full">
+  <div class="card-body p-5">
+    <h3 class="font-semibold text-base-content mb-4">Quick Actions</h3>
+    <div class="flex flex-col gap-2">
+
+      <a href="/users/devices/new" class="btn btn-outline btn-sm justify-start gap-3 font-normal">
+        <div class="bg-brand-50 rounded-lg p-1"><i data-lucide="qr-code" class="w-4 h-4 text-brand-600"></i></div>
+        Generate QR Device Baru
+      </a>
+
+      <a href="/users/messages/send" class="btn btn-outline btn-sm justify-start gap-3 font-normal">
+        <div class="bg-emerald-50 rounded-lg p-1"><i data-lucide="send" class="w-4 h-4 text-emerald-600"></i></div>
+        Kirim Test Message
+      </a>
+
+      <a href="/users/activity" class="btn btn-outline btn-sm justify-start gap-3 font-normal">
+        <div class="bg-indigo-50 rounded-lg p-1"><i data-lucide="scroll-text" class="w-4 h-4 text-indigo-500"></i></div>
+        Lihat Log Aktivitas
+      </a>
+
+      <a href="/users/settings" class="btn btn-outline btn-sm justify-start gap-3 font-normal">
+        <div class="bg-base-200 rounded-lg p-1"><i data-lucide="settings" class="w-4 h-4 text-base-content/50"></i></div>
+        Pengaturan Akun
+      </a>
+
+    </div>
+  </div>
+</div>

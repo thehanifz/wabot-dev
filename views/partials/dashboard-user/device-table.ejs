@@ -1,0 +1,59 @@
+<%# dashboard-user/device-table.ejs %>
+<%# Variabel dari controller: sessions (array of {sessionId, name, status, phoneNumber}) %>
+<div class="card bg-base-100 border border-base-300/70 shadow-sm">
+  <div class="card-body p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-base-content">Device Saya</h3>
+      <a href="/users/devices" class="btn btn-ghost btn-xs gap-1 text-brand-600">
+        Lihat semua <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+      </a>
+    </div>
+
+    <% if (typeof sessions !== 'undefined' && sessions.length > 0) { %>
+    <div class="overflow-x-auto">
+      <table class="table table-sm">
+        <thead>
+          <tr class="text-xs text-base-content/50">
+            <th>Nama / Session</th>
+            <th>Nomor</th>
+            <th>Status</th>
+            <th class="text-right">Aksi</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% sessions.forEach(session => { %>
+          <tr class="hover:bg-base-50">
+            <td>
+              <div class="font-medium text-sm text-base-content"><%= session.name || session.sessionId %></div>
+              <div class="text-xs text-base-content/40"><%= session.sessionId %></div>
+            </td>
+            <td class="text-sm text-base-content/70"><%= session.phoneNumber || '—' %></td>
+            <td>
+              <% if (session.status === 'connected') { %>
+              <span class="badge badge-success badge-sm gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-current inline-block"></span> Connected
+              </span>
+              <% } else if (session.status === 'disconnected') { %>
+              <span class="badge badge-error badge-sm">Disconnected</span>
+              <% } else { %>
+              <span class="badge badge-warning badge-sm"><%= session.status || 'Unknown' %></span>
+              <% } %>
+            </td>
+            <td class="text-right">
+              <a href="/users/devices/<%= session.sessionId %>" class="btn btn-ghost btn-xs">Detail</a>
+            </td>
+          </tr>
+          <% }) %>
+        </tbody>
+      </table>
+    </div>
+    <% } else { %>
+    <%- include('../core/empty-state', {
+      emptyIcon: 'smartphone',
+      emptyTitle: 'Belum ada device',
+      emptyDesc: 'Tambahkan device WhatsApp pertama Anda untuk mulai mengirim pesan.',
+      emptyAction: '<a href="/users/devices/new" class="btn btn-primary btn-sm">Tambah Device</a>'
+    }) %>
+    <% } %>
+  </div>
+</div>
