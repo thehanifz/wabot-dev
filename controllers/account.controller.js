@@ -3,6 +3,7 @@ const logger = require('../config/logger');
 const crypto = require('crypto');
 const net = require('net');
 const BaileysService = require('../services/baileys.service');
+const CryptoService = require('../services/crypto.service');
 
 // Fungsi helper untuk generate Session ID
 const generateSessionId = async () => {
@@ -90,6 +91,26 @@ const validateWebhookUrl = (webhookUrl) => {
     return parsedUrl.toString();
 };
 
+// H-03 / C-03 FIX: Validate API key format and strength before saving
+const API_KEY_PATTERN = /^APIKEY_[A-Fa-f0-9]{32}$/;
+
+const normalizeAndValidateApiKey = (rawApiKey) => {
+    if (typeof rawApiKey !== 'string') {
+        const error = new Error('API key tidak valid.');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    const trimmed = rawApiKey.trim();
+    if (!API_KEY_PATTERN.test(trimmed)) {
+        const error = new Error('Format API key tidak valid. Gunakan API key hasil generate sistem (APIKEY_ diikuti 32 karakter hex).');
+        error.statusCode = 400;
+        throw error;
+    }
+
+    return trimmed;
+};
+
 const addAccount = async (req, res) => {
     const { name } = req.body;
     try {
@@ -125,13 +146,15 @@ const addAccount = async (req, res) => {
         // =============================================================
 
         const newSessionId = await generateSessionId();
+        const plainApiKey = 'APIKEY_' + crypto.randomBytes(16).toString('hex');
 
         await WhatsAppAccount.create({
             name: safeName,  // Use sanitized name
             sessionId: newSessionId,
             userId: req.user.id,
             status: 'disconnected',
-            apiKey: 'APIKEY_' + crypto.randomBytes(16).toString('hex'),
+            // C-02 FIX: Simpan API key dalam bentuk terenkripsi
+            apiKey: CryptoService.encrypt(plainApiKey),
         });
         req.flash('success_msg', 'Akun berhasil ditambahkan.');
     } catch (error) {
@@ -150,16 +173,23 @@ const getSettings = async (req, res) => {
             return res.status(404).json({ error: 'Akun tidak ditemukan.' });
         }
 
+        // C-02 FIX: Decrypt API key sebelum dikirim ke frontend
+        const decryptedApiKey = CryptoService.decrypt(account.apiKey);
+
         return res.json({
             webhookUrl: account.webhookUrl,
-            apiKey: account.apiKey,
+            apiKey: decryptedApiKey,
             maxFileSize: account.maxFileSize,
             allowedMimeTypes: account.allowedMimeTypes || [],
             allowMedia: account.allowMedia,
         });
     } catch (error) {
         logger.error('Gagal mengambil detail pengaturan akun:', error);
-        return res.status(error.statusCode || 500).json({ error: error.message || 'Gagal mengambil pengaturan akun.' });
+        // H-02 FIX: Jangan expose error.message internal untuk error 500
+        const statusCode = error.statusCode || 500;
+        return res.status(statusCode).json({
+            error: statusCode === 400 ? error.message : 'Gagal mengambil pengaturan akun.'
+        });
     }
 };
 
@@ -204,9 +234,14 @@ const updateSettings = async (req, res) => {
                 });
             }
 
+            // C-03 / H-03 FIX: Validasi format & strength API key, lalu enkripsi sebelum disimpan
+            const encryptedApiKey = apiKey
+                ? CryptoService.encrypt(normalizeAndValidateApiKey(apiKey))
+                : account.apiKey;
+
             await account.update({
                 webhookUrl: newWebhookUrl,
-                apiKey,
+                apiKey: encryptedApiKey,
                 maxFileSize: parsedMaxFileSize,
                 allowedMimeTypes: parsedAllowedMimeTypes
             });

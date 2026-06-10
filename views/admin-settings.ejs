@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="wabot">
+<head><%- include('partials/core/head', { title: 'Platform Settings' }) %></head>
+<body class="bg-base-200 min-h-screen">
+<div class="drawer lg:drawer-open">
+  <input id="app-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content flex flex-col min-h-screen">
+    <%- include('partials/nav/topbar-app') %>
+    <main class="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 py-6">
+      <%- include('partials/core/flash-alert') %>
+      <%- include('partials/core/page-header', {
+        pageTitle: 'Platform Settings',
+        pageSubtitle: 'Konfigurasi sistem WA-Bot dari satu tempat.'
+      }) %>
+
+      <form method="POST" action="/admin/settings" class="space-y-6">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+        <% const groupLabels = { general: 'General', security: 'Security', mail: 'Mail', messaging: 'Messaging' }; %>
+        <% if (Object.keys(grouped).length > 0) { %>
+          <% Object.entries(grouped).forEach(([groupKey, settings]) => { %>
+          <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+            <div class="card-body p-5">
+              <h3 class="font-semibold text-base-content mb-4 flex items-center gap-2">
+                <i data-lucide="<%= groupKey === 'security' ? 'shield' : groupKey === 'mail' ? 'mail' : groupKey === 'messaging' ? 'message-square' : 'settings' %>" class="w-4 h-4 text-brand-600"></i>
+                <%= groupLabels[groupKey] || groupKey.charAt(0).toUpperCase() + groupKey.slice(1) %>
+              </h3>
+              <div class="space-y-4">
+                <% settings.forEach(setting => { %>
+                <div class="flex items-start justify-between gap-4">
+                  <div class="flex-1">
+                    <label class="text-sm font-medium text-base-content block mb-0.5" for="setting_<%= setting.key %>">
+                      <%= setting.key %>
+                    </label>
+                    <p class="text-xs text-base-content/40">Type: <%= setting.type %></p>
+                  </div>
+                  <div class="flex-1 max-w-xs">
+                    <% if (setting.type === 'boolean') { %>
+                    <input type="hidden" name="<%= setting.key %>" value="false">
+                    <input type="checkbox" id="setting_<%= setting.key %>" name="<%= setting.key %>"
+                           class="toggle toggle-primary"
+                           value="true" <%= setting.value === 'true' ? 'checked' : '' %> />
+                    <% } else if (setting.type === 'number') { %>
+                    <input type="number" id="setting_<%= setting.key %>" name="<%= setting.key %>"
+                           class="input input-sm input-bordered w-full"
+                           value="<%= setting.value || '' %>" />
+                    <% } else { %>
+                    <input type="text" id="setting_<%= setting.key %>" name="<%= setting.key %>"
+                           class="input input-sm input-bordered w-full"
+                           value="<%= setting.value || '' %>" />
+                    <% } %>
+                  </div>
+                </div>
+                <% }) %>
+              </div>
+            </div>
+          </div>
+          <% }) %>
+
+          <div class="flex justify-end">
+            <button type="submit" class="btn btn-primary gap-2">
+              <i data-lucide="save" class="w-4 h-4"></i> Simpan Pengaturan
+            </button>
+          </div>
+        <% } else { %>
+        <%- include('partials/core/empty-state', {
+          emptyIcon: 'settings',
+          emptyTitle: 'Belum ada pengaturan',
+          emptyDesc: 'Setting platform akan muncul di sini setelah data dikonfigurasi di database.'
+        }) %>
+        <% } %>
+      </form>
+    </main>
+  </div>
+  <div class="drawer-side z-40">
+    <label for="app-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    <%- include('partials/nav/sidebar-admin') %>
+  </div>
+</div>
+<%- include('partials/core/scripts', { loadSocketIO: false }) %>
+</body>
+</html>

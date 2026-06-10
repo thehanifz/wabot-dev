@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="wabot">
+<head><%- include('partials/core/head', { title: 'All Devices' }) %></head>
+<body class="bg-base-200 min-h-screen">
+<div class="drawer lg:drawer-open">
+  <input id="app-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content flex flex-col min-h-screen">
+    <%- include('partials/nav/topbar-app') %>
+    <main class="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6">
+      <%- include('partials/core/flash-alert') %>
+      <%- include('partials/core/page-header', {
+        pageTitle: 'All Devices',
+        pageSubtitle: 'Monitoring semua perangkat WhatsApp di seluruh sistem.'
+      }) %>
+
+      <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+        <div class="card-body p-5">
+          <!-- Filter -->
+          <form method="GET" action="/admin/devices" class="flex flex-col sm:flex-row gap-3 mb-5">
+            <select name="status" class="select select-sm select-bordered" onchange="this.form.submit()">
+              <option value="" <%= filterStatus === '' ? 'selected' : '' %>>Semua Status</option>
+              <option value="connected"    <%= filterStatus === 'connected'    ? 'selected' : '' %>>Connected</option>
+              <option value="disconnected" <%= filterStatus === 'disconnected' ? 'selected' : '' %>>Disconnected</option>
+            </select>
+            <select name="userId" class="select select-sm select-bordered" onchange="this.form.submit()">
+              <option value="">Semua User</option>
+              <% allUsers.forEach(u => { %>
+              <option value="<%= u.id %>" <%= filterUserId == u.id ? 'selected' : '' %>>
+                <%= u.name || u.email %>
+              </option>
+              <% }) %>
+            </select>
+            <span class="text-xs text-base-content/40 self-center ml-auto"><%= totalCount %> device</span>
+          </form>
+
+          <% if (devices && devices.length > 0) { %>
+          <div class="overflow-x-auto">
+            <table class="table table-sm">
+              <thead>
+                <tr class="text-xs text-base-content/50">
+                  <th>Device</th>
+                  <th>Owner</th>
+                  <th>Status</th>
+                  <th>Media</th>
+                  <th>Last Active</th>
+                  <th class="text-right">Aksi</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% devices.forEach(device => { %>
+                <tr class="hover:bg-base-50">
+                  <td>
+                    <div class="font-medium text-sm text-base-content"><%= device.name %></div>
+                    <div class="text-xs text-base-content/40 font-mono"><%= device.sessionId %></div>
+                  </td>
+                  <td>
+                    <div class="text-sm text-base-content/80"><%= device.User ? (device.User.name || device.User.email) : '—' %></div>
+                    <div class="text-xs text-base-content/40"><%= device.User ? device.User.email : '' %></div>
+                  </td>
+                  <td>
+                    <% if (device.status === 'connected') { %>
+                    <span class="badge badge-success badge-sm gap-1"><span class="w-1.5 h-1.5 rounded-full bg-current"></span>Connected</span>
+                    <% } else { %>
+                    <span class="badge badge-error badge-sm">Disconnected</span>
+                    <% } %>
+                  </td>
+                  <td>
+                    <form method="POST" action="/admin/accounts/toggle-media/<%= device.id %>">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="submit" class="btn btn-xs <%= device.allowMedia ? 'btn-success' : 'btn-ghost' %>">
+                        <%= device.allowMedia ? 'ON' : 'OFF' %>
+                      </button>
+                    </form>
+                  </td>
+                  <td class="text-xs text-base-content/50">
+                    <%= device.lastConnectedAt ? new Date(device.lastConnectedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '—' %>
+                  </td>
+                  <td class="text-right">
+                    <form method="POST" action="/admin/accounts/delete/<%= device.id %>" class="inline">
+                      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                      <button type="button" class="btn btn-ghost btn-xs text-error"
+                        @click="$dispatch('open-confirm-modal', {
+                          title: 'Hapus Device',
+                          message: 'Aksi ini tidak dapat dibatalkan.',
+                          confirmLabel: 'Ya, Hapus',
+                          onConfirm: () => $el.closest('form').submit()
+                        })">
+                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <% if (totalPages > 1) { %>
+          <div class="flex justify-center mt-5">
+            <div class="join">
+              <% for (let i = 1; i <= totalPages; i++) { %>
+              <a href="/admin/devices?page=<%= i %>&status=<%= filterStatus %>&userId=<%= filterUserId %>"
+                 class="join-item btn btn-sm <%= currentPage === i ? 'btn-active' : 'btn-ghost' %>">
+                <%= i %>
+              </a>
+              <% } %>
+            </div>
+          </div>
+          <% } %>
+
+          <% } else { %>
+          <%- include('partials/core/empty-state', {
+            emptyIcon: 'smartphone',
+            emptyTitle: 'Tidak ada device ditemukan',
+            emptyDesc: 'Belum ada device yang terdaftar di sistem.'
+          }) %>
+          <% } %>
+
+          <%- include('partials/core/confirm-modal') %>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="drawer-side z-40">
+    <label for="app-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    <%- include('partials/nav/sidebar-admin') %>
+  </div>
+</div>
+<%- include('partials/core/scripts', { loadSocketIO: false }) %>
+</body>
+</html>

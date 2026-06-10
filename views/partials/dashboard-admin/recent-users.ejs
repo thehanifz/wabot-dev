@@ -1,0 +1,34 @@
+<%# dashboard-admin/recent-users.ejs %>
+<%# Variabel: recentUsers (array of {displayName, email, role, createdAt}) — opsional %>
+<div class="card bg-base-100 border border-base-300/70 shadow-sm">
+  <div class="card-body p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-base-content">User Terbaru</h3>
+      <a href="/admin/users" class="btn btn-ghost btn-xs gap-1 text-brand-600">
+        Kelola <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+      </a>
+    </div>
+    <% if (typeof recentUsers !== 'undefined' && recentUsers.length > 0) { %>
+    <ul class="space-y-3">
+      <% recentUsers.slice(0,5).forEach(u => { %>
+      <li class="flex items-center gap-3">
+        <div class="avatar placeholder shrink-0">
+          <div class="bg-brand-100 text-brand-700 rounded-full w-8">
+            <span class="text-xs font-bold"><%= u.displayName ? u.displayName.charAt(0).toUpperCase() : 'U' %></span>
+          </div>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm font-medium text-base-content truncate"><%= u.displayName %></p>
+          <p class="text-xs text-base-content/40 truncate"><%= u.email %></p>
+        </div>
+        <span class="badge badge-sm <%= u.role === 'admin' ? 'badge-primary' : 'badge-ghost' %>">
+          <%= u.role %>
+        </span>
+      </li>
+      <% }) %>
+    </ul>
+    <% } else { %>
+    <%- include('../core/empty-state', { emptyIcon: 'users', emptyTitle: 'Belum ada user', emptyDesc: '' }) %>
+    <% } %>
+  </div>
+</div>

@@ -1,0 +1,73 @@
+<%# core/head.ejs — CDN imports, meta, fonts. Include di awal setiap halaman %>
+<%# Param: title (string) %>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="description" content="WA-Bot — WhatsApp Gateway profesional untuk bisnis Anda." />
+<title><%= typeof title !== 'undefined' ? title + ' — WA-Bot' : 'WA-Bot' %></title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+<!-- Fonts: Inter -->
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+
+<!-- Tailwind CSS + DaisyUI -->
+<link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        fontFamily: { sans: ['Inter', 'ui-sans-serif', 'system-ui'] },
+        colors: {
+          brand: {
+            50:  '#f0fdfa',
+            100: '#ccfbf1',
+            200: '#99f6e4',
+            300: '#5eead4',
+            400: '#2dd4bf',
+            500: '#14b8a6',
+            600: '#0d9488',
+            700: '#0f766e',
+            800: '#115e59',
+            900: '#134e4a',
+          }
+        }
+      }
+    },
+    daisyui: {
+      themes: [
+        {
+          wabot: {
+            "primary":         "#0d9488",
+            "primary-content": "#ffffff",
+            "secondary":       "#6366f1",
+            "accent":          "#f59e0b",
+            "neutral":         "#1e293b",
+            "base-100":        "#ffffff",
+            "base-200":        "#f8fafc",
+            "base-300":        "#e2e8f0",
+            "base-content":    "#0f172a",
+            "info":            "#0ea5e9",
+            "success":         "#22c55e",
+            "warning":         "#f59e0b",
+            "error":           "#ef4444",
+          }
+        }
+      ]
+    }
+  }
+</script>
+
+<!-- Lucide Icons -->
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<style>
+  body { font-family: 'Inter', ui-sans-serif, system-ui; }
+  /* Smooth scroll untuk TOC anchor links */
+  html { scroll-behavior: smooth; }
+  /* Custom scrollbar tipis */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+</style>

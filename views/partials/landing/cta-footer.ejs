@@ -1,0 +1,32 @@
+<%# landing/cta-footer.ejs %>
+<section id="cta" class="bg-gradient-to-br from-brand-600 to-indigo-700 text-white py-20">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 text-center">
+    <h2 class="text-3xl sm:text-4xl font-bold mb-4">Siap Memulai?</h2>
+    <p class="text-white/75 text-lg mb-8">Hubungi kami untuk demo langsung atau diskusi kebutuhan integrasi Anda. Tidak ada pricing publik — kami sesuaikan dengan skala bisnis Anda.</p>
+    <div class="flex flex-col sm:flex-row justify-center gap-3">
+      <a href="/auth/login" class="btn btn-lg bg-white text-brand-700 hover:bg-brand-50 border-0 font-semibold gap-2 shadow-lg">
+        <i data-lucide="log-in" class="w-5 h-5"></i>
+        Login ke Dashboard
+      </a>
+      <% if (typeof adminContactInfo !== 'undefined' && adminContactInfo) { %>
+      <a href="https://wa.me/<%= adminContactInfo.replace(/\D/g,'') %>" target="_blank" rel="noopener noreferrer"
+         class="btn btn-lg btn-outline border-white/40 text-white hover:bg-white/10 gap-2">
+        <i data-lucide="message-circle" class="w-5 h-5"></i>
+        Hubungi Sales
+      </a>
+      <% } %>
+    </div>
+    <p class="mt-8 text-sm text-white/50">
+      Dengan menggunakan layanan ini, Anda menyetujui <a href="/auth/terms" class="underline underline-offset-2 hover:text-white">Terms of Service</a> kami.
+    </p>
+  </div>
+</section>
+<footer class="bg-neutral text-neutral-content/40 py-6">
+  <div class="max-w-6xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row justify-between items-center gap-2 text-sm">
+    <span>© <%= new Date().getFullYear() %> WA-Bot. All rights reserved.</span>
+    <div class="flex gap-4">
+      <a href="/auth/terms" class="hover:text-neutral-content transition-colors">Terms of Service</a>
+      <a href="/auth/login" class="hover:text-neutral-content transition-colors">Login</a>
+    </div>
+  </div>
+</footer>

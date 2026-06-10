@@ -1,0 +1,72 @@
+<%# nav/sidebar-admin.ejs — Sidebar navigasi untuk role admin %>
+
+<ul class="menu p-4 w-64 min-h-full bg-base-100 border-r border-base-300/60 text-sm">
+  <!-- Brand -->
+  <li class="mb-4">
+    <a href="/" class="flex items-center gap-2 px-2 py-1 hover:bg-transparent">
+      <div class="bg-brand-600 rounded-lg p-1.5">
+        <i data-lucide="message-circle" class="w-5 h-5 text-white"></i>
+      </div>
+      <span class="font-bold text-lg text-base-content tracking-tight">WA-Bot</span>
+    </a>
+  </li>
+
+  <!-- Role badge -->
+  <li class="mb-3">
+    <div class="px-3 py-1.5 bg-brand-50 rounded-xl flex items-center gap-2 pointer-events-none">
+      <i data-lucide="shield-check" class="w-4 h-4 text-brand-600"></i>
+      <span class="text-xs font-semibold text-brand-700 uppercase tracking-wider">Admin Panel</span>
+    </div>
+  </li>
+
+  <li class="menu-title text-xs uppercase tracking-wider text-base-content/40 px-4 mb-1">Overview</li>
+
+  <li>
+    <a href="/admin" class="gap-3 rounded-xl font-medium">
+      <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+      Admin Dashboard
+    </a>
+  </li>
+
+  <li class="menu-title text-xs uppercase tracking-wider text-base-content/40 px-4 mb-1 mt-2">Manajemen</li>
+
+  <li>
+    <a href="/admin/devices" class="gap-3 rounded-xl">
+      <i data-lucide="smartphone" class="w-4 h-4"></i>
+      Devices (All)
+    </a>
+  </li>
+
+  <li>
+    <a href="/admin/users" class="gap-3 rounded-xl">
+      <i data-lucide="users" class="w-4 h-4"></i>
+      Users
+    </a>
+  </li>
+
+  <li class="menu-title text-xs uppercase tracking-wider text-base-content/40 px-4 mb-1 mt-2">System</li>
+
+  <li>
+    <a href="/admin/logs" class="gap-3 rounded-xl">
+      <i data-lucide="scroll-text" class="w-4 h-4"></i>
+      Logs
+    </a>
+  </li>
+
+  <li>
+    <a href="/admin/settings" class="gap-3 rounded-xl">
+      <i data-lucide="settings-2" class="w-4 h-4"></i>
+      Settings
+    </a>
+  </li>
+
+  <div class="divider my-2"></div>
+
+  <!-- Footer sidebar -->
+  <li class="mt-auto">
+    <a href="/auth/logout" class="gap-3 rounded-xl text-error hover:bg-error/10">
+      <i data-lucide="log-out" class="w-4 h-4"></i>
+      Logout
+    </a>
+  </li>
+</ul>

@@ -1,0 +1,21 @@
+<%# core/scripts.ejs — Alpine.js dan Socket.IO client. Include sebelum </body> %>
+
+<!-- Alpine.js -->
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+
+<!-- Lucide icons init (setelah DOM ready) -->
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof lucide !== 'undefined') lucide.createIcons();
+  });
+</script>
+
+<%# Socket.IO hanya di-load pada halaman app (bukan landing/login/terms) %>
+<% if (typeof loadSocketIO !== 'undefined' && loadSocketIO) { %>
+<script src="/socket.io/socket.io.js"></script>
+<script>
+  const socket = io({ transports: ['websocket'], upgrade: false });
+  socket.on('connect', () => console.log('[Socket] Connected:', socket.id));
+  socket.on('disconnect', () => console.warn('[Socket] Disconnected'));
+</script>
+<% } %>

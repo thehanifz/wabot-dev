@@ -1,0 +1,23 @@
+<%# core/flash-alert.ejs — Render flash messages dari server (connect-flash) %>
+<%# Variabel: success_msg, error_msg, error — sudah di-set via res.locals di server.js %>
+
+<% if (success_msg && success_msg.length > 0) { %>
+<div role="alert" class="alert alert-success shadow-sm mb-4">
+  <i data-lucide="circle-check" class="w-5 h-5 shrink-0"></i>
+  <span><%= success_msg %></span>
+</div>
+<% } %>
+
+<% if (error_msg && error_msg.length > 0) { %>
+<div role="alert" class="alert alert-error shadow-sm mb-4">
+  <i data-lucide="circle-x" class="w-5 h-5 shrink-0"></i>
+  <span><%= error_msg %></span>
+</div>
+<% } %>
+
+<% if (error && error.length > 0) { %>
+<div role="alert" class="alert alert-error shadow-sm mb-4">
+  <i data-lucide="triangle-alert" class="w-5 h-5 shrink-0"></i>
+  <span><%= error %></span>
+</div>
+<% } %>

@@ -3,6 +3,41 @@ const BaileysService = require('../services/baileys.service');
 const logger = require('../config/logger');
 const { Op } = require('sequelize');
 
+// H-01 FIX: Helper redirect aman — hanya ambil query params yang diizinkan (user & status),
+// pastikan path target selalu di bawah /admin, tidak ikuti redirect ke domain eksternal.
+const getSafeAdminRedirectTarget = (req) => {
+    const fallback = '/admin';
+    const referer = req.headers.referer;
+
+    if (!referer) {
+        return fallback;
+    }
+
+    try {
+        // Parse referer sebagai URL relatif terhadap localhost (bukan redirect ke sana)
+        const refererUrl = new URL(referer, 'http://localhost');
+
+        // Pastikan path-nya di bawah /admin, tidak kemana-mana
+        if (!refererUrl.pathname.startsWith('/admin')) {
+            return fallback;
+        }
+
+        // Hanya izinkan query params whitelist
+        const safeParams = new URLSearchParams();
+        const userParam = refererUrl.searchParams.get('user');
+        const statusParam = refererUrl.searchParams.get('status');
+
+        if (userParam) safeParams.set('user', userParam);
+        if (statusParam) safeParams.set('status', statusParam);
+
+        const query = safeParams.toString();
+        return query ? `${fallback}?${query}` : fallback;
+    } catch (error) {
+        logger.warn('[Admin] Referer header tidak valid, gunakan redirect default.', { referer });
+        return fallback;
+    }
+};
+
 const getAdminDashboardPage = async (req, res) => {
     try {
         // ================== LOGIKA FILTER BARU DI SINI ==================
@@ -67,8 +102,8 @@ const deleteAccountAsAdmin = async (req, res) => {
         logger.error(`Gagal menghapus sesi ${accountId} oleh admin:`, error);
         req.flash('error_msg', 'Gagal menghapus sesi.');
     }
-    // Pertahankan filter saat redirect
-    res.redirect('/admin' + (req.headers.referer ? new URL(req.headers.referer).search : ''));
+    // H-01 FIX: Gunakan redirect aman, jangan ikuti referer mentah
+    res.redirect(getSafeAdminRedirectTarget(req));
 };
 
 const toggleMedia = async (req, res) => {
@@ -87,8 +122,8 @@ const toggleMedia = async (req, res) => {
         logger.error('Gagal mengubah status media:', error);
         req.flash('error_msg', 'Gagal mengubah izin media.');
     }
-    // Pertahankan filter saat redirect
-    res.redirect('/admin' + (req.headers.referer ? new URL(req.headers.referer).search : ''));
+    // H-01 FIX: Gunakan redirect aman, jangan ikuti referer mentah
+    res.redirect(getSafeAdminRedirectTarget(req));
 };
 
 module.exports = {
@@ -96,4 +131,3 @@ module.exports = {
     deleteAccountAsAdmin,
     toggleMedia,
 };
-

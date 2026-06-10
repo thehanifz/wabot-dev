@@ -23,7 +23,29 @@ const { waitForDatabaseReady } = require('./services/db-health-check.service');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+
+// H-04 FIX: Batasi Socket.IO hanya dari origin yang sama dengan BASE_URL
+// Pakai BASE_URL yang sudah ada di .env (sama yang dipakai Google OAuth callback).
+// Contoh: BASE_URL=https://wa.domain-anda.com
+const allowedOrigins = process.env.BASE_URL
+    ? [process.env.BASE_URL.trim().replace(/\/$/, '')]
+    : [];
+
+const io = new Server(server, {
+    cors: {
+        origin: (origin, callback) => {
+            // Izinkan koneksi tanpa origin (same-origin browser request)
+            if (!origin) return callback(null, true);
+            // Jika BASE_URL tidak diatur, izinkan semua (fallback dev mode)
+            if (allowedOrigins.length === 0) return callback(null, true);
+            if (allowedOrigins.includes(origin)) return callback(null, true);
+            logger.warn(`[Socket.IO] Origin ditolak: ${origin}`);
+            return callback(new Error('Socket.IO origin tidak diizinkan'));
+        },
+        methods: ['GET', 'POST'],
+        credentials: true,
+    },
+});
 
 // === 1. MIDDLEWARE DASAR ===
 app.set('trust proxy', 1);
@@ -36,7 +58,9 @@ app.use(helmet.contentSecurityPolicy({
     directives: {
         "default-src": ["'self'"],
         "script-src": ["'self'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
-        "style-src": ["'self'", "'unsafe-inline'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
+        // MEDIUM FIX: Hapus 'unsafe-inline' dari style-src
+        // Jika ada inline style yang diperlukan, pindahkan ke file .css eksternal
+        "style-src": ["'self'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
         "img-src": ["'self'", "data:", "https://*"],
         "connect-src": ["'self'", "ws:", "wss:"],
         "font-src": ["'self'", "https://cdnjs.cloudflare.com"]
@@ -59,8 +83,33 @@ const sessionMiddleware = session({
 
 app.use(sessionMiddleware);
 
+// H-04 FIX: Rate limit per-IP pada Socket.IO handshake
+// Mencegah flood koneksi yang bisa exhausting memory / CPU
+const socketConnectionAttempts = new Map();
+const SOCKET_WINDOW_MS = 60 * 1000;   // 1 menit
+const SOCKET_MAX_ATTEMPTS = 30;        // maks 30 handshake/IP/menit
+
 // Bagikan sesi Express ke Socket.IO agar socket bisa membaca session.passport.user
 io.use((socket, next) => {
+    const forwardedFor = socket.handshake.headers['x-forwarded-for'];
+    const ipAddress = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor || socket.handshake.address || 'unknown')
+        .toString()
+        .split(',')
+        [0]
+        .trim();
+
+    const currentTime = Date.now();
+    const attempts = socketConnectionAttempts.get(ipAddress) || [];
+    const freshAttempts = attempts.filter(timestamp => currentTime - timestamp < SOCKET_WINDOW_MS);
+
+    if (freshAttempts.length >= SOCKET_MAX_ATTEMPTS) {
+        logger.warn(`[Socket.IO] Rate limit tercapai untuk IP: ${ipAddress}`);
+        return next(new Error('Terlalu banyak koneksi socket. Coba lagi nanti.'));
+    }
+
+    freshAttempts.push(currentTime);
+    socketConnectionAttempts.set(ipAddress, freshAttempts);
+
     sessionMiddleware(socket.request, {}, next);
 });
 
@@ -133,12 +182,9 @@ app.use((err, req, res, next) => {
     }
 
     if (expectsJson) {
-        if (process.env.NODE_ENV === 'production') {
-            return res.status(500).json({ error: 'An internal server error occurred.' });
-        }
+        // H-02 FIX: Jangan pernah kirim error.message atau stack ke client di production
         return res.status(500).json({
-            error: err.message || 'Internal server error.',
-            stack: err.stack || String(err),
+            error: 'An internal server error occurred.',
         });
     }
 

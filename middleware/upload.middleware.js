@@ -4,20 +4,26 @@ const fs = require('fs');
 const crypto = require('crypto');
 const logger = require('../config/logger');
 const { WhatsAppAccount } = require('../models');
+const CryptoService = require('../services/crypto.service');
 let fileTypeFromBuffer = null;
 
 try {
     ({ fileTypeFromBuffer } = require('file-type'));
 } catch (error) { }
 
-// Pengaturan default dari .env sebagai fallback
 const DEFAULT_MAX_SIZE_MB = parseInt(process.env.UPLOAD_MAX_SIZE_MB, 10) || 15;
 const DEFAULT_ALLOWED_MIMETYPES_STRING = process.env.UPLOAD_ALLOWED_MIMETYPES || 'image/jpeg,image/png,application/pdf';
 const DEFAULT_ALLOWED_MIMETYPES = DEFAULT_ALLOWED_MIMETYPES_STRING.replace(/"/g, '').split(',').map(m => m.trim());
 const PRIVATE_UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 
-// 1. Inisialisasi multer untuk memproses request ke memori terlebih dahulu
-const memoryUpload = multer({ storage: multer.memoryStorage() }).any();
+// Batas ukuran payload mentah sebelum auth — mencegah DoS via upload besar
+// MEDIUM FIX: Batasi buffer awal ke 2MB; validasi ukuran sebenarnya setelah auth
+const MAX_RAW_UPLOAD_BYTES = 2 * 1024 * 1024; // 2 MB hard limit sebelum auth
+
+const memoryUpload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: MAX_RAW_UPLOAD_BYTES },
+}).any();
 
 const detectMimeFromMagicBytes = async (buffer, fallbackMime) => {
     if (!buffer || buffer.length < 4) {
@@ -42,23 +48,17 @@ const detectMimeFromMagicBytes = async (buffer, fallbackMime) => {
     return fallbackMime || null;
 };
 
-/**
- * Middleware cerdas untuk menangani unggahan media secara dinamis.
- * - Memproses form multipart ke memori.
- * - Memvalidasi API Key & Session ID dari body.
- * - Memvalidasi izin media (allowMedia).
- * - Memvalidasi aturan file (ukuran & tipe) sesuai pengaturan sesi.
- * - Menyimpan file ke disk jika semua validasi lolos.
- */
 const handleMediaUpload = (req, res, next) => {
-    // Jalankan multer untuk mem-parsing form ke memori
     memoryUpload(req, res, async (err) => {
         if (err) {
-            return res.status(400).json({ error: `Upload error: ${err.message}` });
+            // Jangan expose detail error multer internal
+            if (err.code === 'LIMIT_FILE_SIZE') {
+                return res.status(413).json({ error: 'Ukuran file melebihi batas yang diizinkan.' });
+            }
+            return res.status(400).json({ error: 'Gagal memproses upload.' });
         }
 
         try {
-            // --- Validasi API Key & Sesi ---
             const headers = Object.keys(req.headers).reduce((destination, key) => {
                 destination[key.toLowerCase()] = req.headers[key];
                 return destination;
@@ -77,9 +77,11 @@ const handleMediaUpload = (req, res, next) => {
                 return res.status(401).json({ error: 'Akses ditolak.' });
             }
 
-            const decryptedApiKeyFromDb = account.apiKey;
+            // C-02 FIX: Dekripsi API key dari DB sebelum dibandingkan
+            const decryptedApiKeyFromDb = CryptoService.decrypt(account.apiKey);
             if (!decryptedApiKeyFromDb) {
-                return res.status(401).json({ error: 'Akses ditolak.' });
+                logger.error(`[Upload Auth] Gagal mendekripsi API Key untuk sesi ${sessionIdFromRequest}.`);
+                return res.status(500).json({ error: 'Kesalahan konfigurasi keamanan internal.' });
             }
 
             // REQ-15: Use constant-time comparison to prevent timing attacks
@@ -97,10 +99,8 @@ const handleMediaUpload = (req, res, next) => {
                 return res.status(401).json({ error: 'Akses ditolak.' });
             }
 
-            // --- Validasi File & Izin Media ---
             const file = req.files && req.files.length > 0 ? req.files[0] : null;
 
-            // Jika ada file yang diunggah, lakukan validasi
             if (file) {
                 if (!account.allowMedia) {
                     return res.status(403).json({ error: 'Pengiriman media tidak diizinkan untuk sesi ini.' });
@@ -134,7 +134,6 @@ const handleMediaUpload = (req, res, next) => {
                 };
             }
 
-            // Teruskan informasi akun ke controller
             req.account = account;
             req.accountId = account.id;
 

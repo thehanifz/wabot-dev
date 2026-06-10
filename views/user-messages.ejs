@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="wabot">
+<head><%- include('partials/core/head', { title: 'Messages' }) %></head>
+<body class="bg-base-200 min-h-screen">
+<div class="drawer lg:drawer-open">
+  <input id="app-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content flex flex-col min-h-screen">
+    <%- include('partials/nav/topbar-app') %>
+    <main class="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6">
+      <%- include('partials/core/flash-alert') %>
+      <%- include('partials/core/page-header', {
+        pageTitle: 'Messages',
+        pageSubtitle: 'Riwayat pesan keluar dari semua device Anda.'
+      }) %>
+
+      <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+        <div class="card-body p-5">
+          <!-- Filter -->
+          <div class="flex flex-col sm:flex-row gap-3 mb-5">
+            <form method="GET" action="/users/messages" class="flex gap-2 flex-wrap">
+              <select name="status" class="select select-sm select-bordered" onchange="this.form.submit()">
+                <option value="" <%= filterStatus === '' ? 'selected' : '' %>>Semua Status</option>
+                <option value="sent"    <%= filterStatus === 'sent'    ? 'selected' : '' %>>Sent</option>
+                <option value="failed"  <%= filterStatus === 'failed'  ? 'selected' : '' %>>Failed</option>
+                <option value="pending" <%= filterStatus === 'pending' ? 'selected' : '' %>>Pending</option>
+              </select>
+            </form>
+            <div class="ml-auto text-xs text-base-content/40 self-center">
+              <%= totalCount %> pesan ditemukan
+            </div>
+          </div>
+
+          <% if (outgoingMessages && outgoingMessages.length > 0) { %>
+          <div class="overflow-x-auto">
+            <table class="table table-sm">
+              <thead>
+                <tr class="text-xs text-base-content/50">
+                  <th>Tujuan</th>
+                  <th>Pesan</th>
+                  <th>Device</th>
+                  <th>Waktu</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                <% outgoingMessages.forEach(msg => { %>
+                <% const payload = msg.payload || {}; %>
+                <% const preview = payload.message ? String(payload.message).substring(0, 60) : (payload.type || '—'); %>
+                <tr class="hover:bg-base-50">
+                  <td class="font-mono text-xs text-base-content/80"><%= msg.recipient %></td>
+                  <td class="text-sm max-w-xs">
+                    <span class="truncate block" title="<%= preview %>"><%= preview %><%= String(payload.message || '').length > 60 ? '…' : '' %></span>
+                  </td>
+                  <td class="text-xs text-base-content/60">
+                    <%= msg.WhatsAppAccount ? msg.WhatsAppAccount.name : '—' %>
+                  </td>
+                  <td class="text-xs text-base-content/50 whitespace-nowrap">
+                    <%= new Date(msg.createdAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) %>
+                  </td>
+                  <td>
+                    <% if (msg.status === 'sent') { %>
+                    <span class="badge badge-success badge-sm">Sent</span>
+                    <% } else if (msg.status === 'failed') { %>
+                    <span class="badge badge-error badge-sm" title="<%= msg.errorMessage || '' %>">Failed</span>
+                    <% } else { %>
+                    <span class="badge badge-warning badge-sm">Pending</span>
+                    <% } %>
+                  </td>
+                </tr>
+                <% }) %>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination -->
+          <% if (totalPages > 1) { %>
+          <div class="flex justify-center mt-5">
+            <div class="join">
+              <% for (let i = 1; i <= totalPages; i++) { %>
+              <a href="/users/messages?page=<%= i %>&status=<%= filterStatus %>"
+                 class="join-item btn btn-sm <%= currentPage === i ? 'btn-active' : 'btn-ghost' %>">
+                <%= i %>
+              </a>
+              <% } %>
+            </div>
+          </div>
+          <% } %>
+
+          <% } else { %>
+          <%- include('partials/core/empty-state', {
+            emptyIcon: 'message-square',
+            emptyTitle: 'Belum ada pesan',
+            emptyDesc: 'Pesan keluar dari device Anda akan muncul di sini.'
+          }) %>
+          <% } %>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="drawer-side z-40">
+    <label for="app-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    <%- include('partials/nav/sidebar-user') %>
+  </div>
+</div>
+<%- include('partials/core/scripts', { loadSocketIO: false }) %>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<%# dashboard-admin/kpi-cards.ejs — KPI global untuk admin %>
+<%# Variabel: totalUsers, totalSessions, failedJobs, systemUptime %>
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
+
+  <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+    <div class="card-body p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Total Users</span>
+        <div class="bg-brand-50 rounded-lg p-1.5"><i data-lucide="users" class="w-4 h-4 text-brand-600"></i></div>
+      </div>
+      <p class="text-2xl font-bold text-base-content"><%= typeof totalUsers !== 'undefined' ? totalUsers : '—' %></p>
+      <p class="text-xs text-base-content/40 mt-1">pengguna terdaftar</p>
+    </div>
+  </div>
+
+  <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+    <div class="card-body p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Total Devices</span>
+        <div class="bg-success/10 rounded-lg p-1.5"><i data-lucide="smartphone" class="w-4 h-4 text-success"></i></div>
+      </div>
+      <p class="text-2xl font-bold text-base-content"><%= typeof totalSessions !== 'undefined' ? totalSessions : '—' %></p>
+      <p class="text-xs text-base-content/40 mt-1">semua device aktif</p>
+    </div>
+  </div>
+
+  <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+    <div class="card-body p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">Failed Jobs</span>
+        <div class="bg-error/10 rounded-lg p-1.5"><i data-lucide="alert-triangle" class="w-4 h-4 text-error"></i></div>
+      </div>
+      <p class="text-2xl font-bold text-base-content"><%= typeof failedJobs !== 'undefined' ? failedJobs : '—' %></p>
+      <p class="text-xs text-base-content/40 mt-1">job gagal hari ini</p>
+    </div>
+  </div>
+
+  <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+    <div class="card-body p-4">
+      <div class="flex items-center justify-between mb-2">
+        <span class="text-xs font-medium text-base-content/50 uppercase tracking-wide">System Uptime</span>
+        <div class="bg-indigo-50 rounded-lg p-1.5"><i data-lucide="server" class="w-4 h-4 text-indigo-500"></i></div>
+      </div>
+      <p class="text-2xl font-bold text-base-content"><%= typeof systemUptime !== 'undefined' ? systemUptime : '—' %></p>
+      <p class="text-xs text-base-content/40 mt-1">sejak restart terakhir</p>
+    </div>
+  </div>
+
+</div>

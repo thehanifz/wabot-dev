@@ -1,0 +1,72 @@
+<%# nav/topbar-app.ejs — Topbar dalam app, shared untuk user & admin %>
+<%# Variabel: user (object dari res.locals) %>
+
+<div class="navbar bg-base-100 border-b border-base-300/60 px-4 min-h-14 sticky top-0 z-30">
+  <!-- Tombol buka sidebar (mobile) -->
+  <div class="navbar-start">
+    <label for="app-drawer" class="btn btn-ghost btn-sm drawer-button lg:hidden">
+      <i data-lucide="menu" class="w-5 h-5"></i>
+    </label>
+    <a href="/" class="flex items-center gap-2 ml-2 lg:ml-0">
+      <div class="bg-brand-600 rounded-lg p-1">
+        <i data-lucide="message-circle" class="w-4 h-4 text-white"></i>
+      </div>
+      <span class="font-bold text-base text-base-content tracking-tight hidden sm:inline">WA-Bot</span>
+    </a>
+  </div>
+
+  <div class="navbar-end gap-1">
+    <!-- Notifikasi (placeholder, bisa diisi dengan data real) -->
+    <button class="btn btn-ghost btn-sm btn-circle" title="Notifikasi">
+      <i data-lucide="bell" class="w-4 h-4"></i>
+    </button>
+
+    <!-- Profile dropdown -->
+    <div class="dropdown dropdown-end" x-data="{ open: false }">
+      <button
+        class="btn btn-ghost btn-sm gap-2 px-2"
+        @click="open = !open"
+      >
+        <div class="avatar placeholder">
+          <div class="bg-brand-600 text-white rounded-full w-7">
+            <span class="text-xs font-semibold">
+              <%= user && user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U' %>
+            </span>
+          </div>
+        </div>
+        <span class="text-sm font-medium hidden sm:inline">
+          <%= user && user.displayName ? user.displayName.split(' ')[0] : 'User' %>
+        </span>
+        <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-base-content/50"></i>
+      </button>
+
+      <ul
+        x-show="open"
+        @click.outside="open = false"
+        class="menu menu-sm dropdown-content mt-2 z-[1] p-2 shadow-lg bg-base-100 rounded-xl w-52 border border-base-300"
+      >
+        <li class="menu-title px-3 py-2">
+          <span class="font-medium text-base-content text-sm"><%= user ? user.displayName : '' %></span>
+          <span class="text-xs text-base-content/50"><%= user ? user.email : '' %></span>
+        </li>
+        <div class="divider my-0.5"></div>
+        <li>
+          <a href="/users/profile" class="gap-2">
+            <i data-lucide="user" class="w-4 h-4"></i> Profil
+          </a>
+        </li>
+        <li>
+          <a href="/users/settings" class="gap-2">
+            <i data-lucide="settings" class="w-4 h-4"></i> Pengaturan
+          </a>
+        </li>
+        <div class="divider my-0.5"></div>
+        <li>
+          <a href="/auth/logout" class="gap-2 text-error">
+            <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+          </a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,40 @@
+<%# dashboard-user/recent-activity.ejs %>
+<%# Variabel dari controller: recentActivity (array of {type, message, time}) — opsional %>
+<div class="card bg-base-100 border border-base-300/70 shadow-sm h-full">
+  <div class="card-body p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-base-content">Aktivitas Terakhir</h3>
+      <a href="/users/activity" class="btn btn-ghost btn-xs gap-1 text-brand-600">
+        Semua <i data-lucide="arrow-right" class="w-3.5 h-3.5"></i>
+      </a>
+    </div>
+
+    <% if (typeof recentActivity !== 'undefined' && recentActivity.length > 0) { %>
+    <ul class="space-y-3">
+      <% recentActivity.slice(0, 8).forEach(item => { %>
+      <li class="flex items-start gap-3">
+        <div class="mt-0.5 shrink-0">
+          <% if (item.type === 'message_sent') { %>
+          <div class="bg-success/10 rounded-full p-1"><i data-lucide="send" class="w-3.5 h-3.5 text-success"></i></div>
+          <% } else if (item.type === 'message_failed') { %>
+          <div class="bg-error/10 rounded-full p-1"><i data-lucide="x-circle" class="w-3.5 h-3.5 text-error"></i></div>
+          <% } else { %>
+          <div class="bg-base-200 rounded-full p-1"><i data-lucide="info" class="w-3.5 h-3.5 text-base-content/40"></i></div>
+          <% } %>
+        </div>
+        <div class="flex-1 min-w-0">
+          <p class="text-sm text-base-content/80 truncate"><%= item.message %></p>
+          <p class="text-xs text-base-content/40"><%= item.time %></p>
+        </div>
+      </li>
+      <% }) %>
+    </ul>
+    <% } else { %>
+    <%- include('../core/empty-state', {
+      emptyIcon: 'activity',
+      emptyTitle: 'Belum ada aktivitas',
+      emptyDesc: 'Aktivitas akan muncul setelah device aktif dan pesan mulai terkirim.'
+    }) %>
+    <% } %>
+  </div>
+</div>

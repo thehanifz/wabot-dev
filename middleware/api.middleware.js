@@ -1,5 +1,6 @@
 const { WhatsAppAccount } = require('../models');
 const logger = require('../config/logger');
+const CryptoService = require('../services/crypto.service');
 
 const validateApiKey = async (req, res, next) => {
     try {
@@ -21,7 +22,8 @@ const validateApiKey = async (req, res, next) => {
             return res.status(401).json({ error: 'Akses ditolak.' });
         }
 
-        const decryptedApiKeyFromDb = account.apiKey;
+        // C-02 FIX: Dekripsi API key dari DB sebelum dibandingkan
+        const decryptedApiKeyFromDb = CryptoService.decrypt(account.apiKey);
 
         if (decryptedApiKeyFromDb === null) {
             logger.error(`[API Auth] Gagal mendekripsi API Key untuk sesi ${sessionIdFromRequest}.`);
@@ -61,4 +63,3 @@ const validateApiKey = async (req, res, next) => {
 module.exports = {
     validateApiKey,
 };
-

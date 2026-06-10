@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="wabot">
+<head><%- include('partials/core/head', { title: 'Activity' }) %></head>
+<body class="bg-base-200 min-h-screen">
+<div class="drawer lg:drawer-open">
+  <input id="app-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content flex flex-col min-h-screen">
+    <%- include('partials/nav/topbar-app') %>
+    <main class="flex-1 max-w-6xl mx-auto w-full px-4 sm:px-6 py-6">
+      <%- include('partials/core/flash-alert') %>
+      <%- include('partials/core/page-header', {
+        pageTitle: 'Activity',
+        pageSubtitle: '50 aktivitas terbaru dari device Anda.'
+      }) %>
+
+      <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+        <div class="card-body p-5">
+          <% if (feed && feed.length > 0) { %>
+          <ul class="space-y-3">
+            <% feed.forEach(item => { %>
+            <li class="flex items-start gap-3 py-2 border-b border-base-200 last:border-0">
+              <div class="shrink-0 mt-0.5">
+                <% if (item.type === 'outgoing') { %>
+                <div class="bg-success/10 rounded-full p-1.5"><i data-lucide="send" class="w-4 h-4 text-success"></i></div>
+                <% } else { %>
+                <div class="bg-blue-50 rounded-full p-1.5"><i data-lucide="inbox" class="w-4 h-4 text-blue-500"></i></div>
+                <% } %>
+              </div>
+              <div class="flex-1 min-w-0">
+                <div class="flex items-center gap-2 flex-wrap">
+                  <% if (item.type === 'outgoing') { %>
+                  <span class="badge badge-success badge-xs">Outgoing</span>
+                  <span class="text-sm text-base-content/80 truncate">
+                    ke <span class="font-mono"><%= item.data.recipient %></span>
+                    <% const p = item.data.payload || {}; %>
+                    <% if (p.message) { %> — "<%= String(p.message).substring(0, 40) %><%= p.message.length > 40 ? '…' : '' %>"<% } %>
+                  </span>
+                  <% } else { %>
+                  <span class="badge badge-info badge-xs">Incoming</span>
+                  <span class="text-sm text-base-content/80 truncate">
+                    dari <span class="font-mono"><%= item.data.from || item.data.sender || '—' %></span>
+                  </span>
+                  <% } %>
+                </div>
+                <div class="flex items-center gap-2 mt-1">
+                  <span class="text-xs text-base-content/40">
+                    <%= new Date(item.createdAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) %>
+                  </span>
+                  <% if (item.data.WhatsAppAccount) { %>
+                  <span class="text-xs text-base-content/40">· <%= item.data.WhatsAppAccount.name %></span>
+                  <% } %>
+                  <% if (item.type === 'outgoing' && item.data.status) { %>
+                  <span class="badge badge-xs <%= item.data.status === 'sent' ? 'badge-success' : item.data.status === 'failed' ? 'badge-error' : 'badge-warning' %>">
+                    <%= item.data.status %>
+                  </span>
+                  <% } %>
+                </div>
+              </div>
+            </li>
+            <% }) %>
+          </ul>
+          <% } else { %>
+          <%- include('partials/core/empty-state', {
+            emptyIcon: 'activity',
+            emptyTitle: 'Belum ada aktivitas',
+            emptyDesc: 'Aktivitas akan muncul setelah device aktif dan pesan mulai terkirim.'
+          }) %>
+          <% } %>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="drawer-side z-40">
+    <label for="app-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    <%- include('partials/nav/sidebar-user') %>
+  </div>
+</div>
+<%- include('partials/core/scripts', { loadSocketIO: false }) %>
+</body>
+</html>

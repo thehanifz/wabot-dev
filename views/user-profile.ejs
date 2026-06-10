@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="wabot">
+<head><%- include('partials/core/head', { title: 'Profile' }) %></head>
+<body class="bg-base-200 min-h-screen">
+<div class="drawer lg:drawer-open">
+  <input id="app-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content flex flex-col min-h-screen">
+    <%- include('partials/nav/topbar-app') %>
+    <main class="flex-1 max-w-3xl mx-auto w-full px-4 sm:px-6 py-6">
+      <%- include('partials/core/flash-alert') %>
+      <%- include('partials/core/page-header', {
+        pageTitle: 'Profile',
+        pageSubtitle: 'Kelola informasi akun Anda.'
+      }) %>
+
+      <!-- Info card -->
+      <div class="card bg-base-100 border border-base-300/70 shadow-sm mb-5">
+        <div class="card-body p-5">
+          <div class="flex items-center gap-4">
+            <div class="avatar placeholder">
+              <div class="bg-brand-100 text-brand-700 rounded-full w-14">
+                <span class="text-xl font-bold">
+                  <%= userData.name ? userData.name.charAt(0).toUpperCase() : userData.email.charAt(0).toUpperCase() %>
+                </span>
+              </div>
+            </div>
+            <div>
+              <p class="font-semibold text-base-content text-lg"><%= userData.name || '—' %></p>
+              <p class="text-sm text-base-content/50"><%= userData.email %></p>
+              <div class="flex items-center gap-2 mt-1">
+                <span class="badge badge-sm <%= userData.role === 'admin' ? 'badge-primary' : 'badge-ghost' %>">
+                  <%= userData.role %>
+                </span>
+                <span class="text-xs text-base-content/40">
+                  Bergabung <%= new Date(userData.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) %>
+                </span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Edit form -->
+      <div class="card bg-base-100 border border-base-300/70 shadow-sm mb-5">
+        <div class="card-body p-5">
+          <h3 class="font-semibold text-base-content mb-4">Edit Informasi</h3>
+          <form method="POST" action="/users/profile" class="space-y-4">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="form-control">
+              <label class="label pb-1"><span class="label-text text-sm font-medium">Nama</span></label>
+              <input type="text" name="name" class="input input-bordered"
+                     value="<%= userData.name || '' %>" placeholder="Nama Anda" />
+            </div>
+            <div class="form-control">
+              <label class="label pb-1"><span class="label-text text-sm font-medium">Email</span></label>
+              <input type="email" name="email" class="input input-bordered"
+                     value="<%= userData.email %>" placeholder="email@domain.com" />
+            </div>
+            <div class="form-control">
+              <label class="label pb-1"><span class="label-text text-sm font-medium">Role</span></label>
+              <input type="text" class="input input-bordered input-disabled" value="<%= userData.role %>" disabled />
+              <p class="text-xs text-base-content/40 mt-1">Role tidak dapat diubah sendiri.</p>
+            </div>
+            <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Change password -->
+      <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+        <div class="card-body p-5">
+          <h3 class="font-semibold text-base-content mb-1">Ganti Password</h3>
+          <p class="text-xs text-base-content/50 mb-4">Kosongkan jika tidak ingin mengganti password.</p>
+          <form method="POST" action="/users/profile" class="space-y-4"
+                x-data="{ showPw: false }">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <!-- Kirim nama & email juga supaya tidak ter-reset -->
+            <input type="hidden" name="name" value="<%= userData.name || '' %>">
+            <input type="hidden" name="email" value="<%= userData.email %>">
+
+            <div class="form-control" x-data="{ show: false }">
+              <label class="label pb-1"><span class="label-text text-sm font-medium">Password Saat Ini</span></label>
+              <div class="relative">
+                <input :type="show ? 'text' : 'password'" name="currentPassword"
+                       class="input input-bordered w-full pr-10" placeholder="••••••••" />
+                <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content"
+                        @click="show = !show">
+                  <template x-if="show"><i data-lucide="eye-off" class="w-4 h-4"></i></template>
+                  <template x-if="!show"><i data-lucide="eye" class="w-4 h-4"></i></template>
+                </button>
+              </div>
+            </div>
+            <div class="form-control" x-data="{ show: false }">
+              <label class="label pb-1"><span class="label-text text-sm font-medium">Password Baru</span></label>
+              <div class="relative">
+                <input :type="show ? 'text' : 'password'" name="newPassword"
+                       class="input input-bordered w-full pr-10" placeholder="Min. 8 karakter" />
+                <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content"
+                        @click="show = !show">
+                  <template x-if="show"><i data-lucide="eye-off" class="w-4 h-4"></i></template>
+                  <template x-if="!show"><i data-lucide="eye" class="w-4 h-4"></i></template>
+                </button>
+              </div>
+            </div>
+            <div class="form-control">
+              <label class="label pb-1"><span class="label-text text-sm font-medium">Konfirmasi Password Baru</span></label>
+              <input type="password" name="confirmPassword" class="input input-bordered"
+                     placeholder="Ulangi password baru" />
+            </div>
+            <button type="submit" class="btn btn-outline">Ganti Password</button>
+          </form>
+        </div>
+      </div>
+    </main>
+  </div>
+  <div class="drawer-side z-40">
+    <label for="app-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    <%- include('partials/nav/sidebar-user') %>
+  </div>
+</div>
+<%- include('partials/core/scripts', { loadSocketIO: false }) %>
+</body>
+</html>

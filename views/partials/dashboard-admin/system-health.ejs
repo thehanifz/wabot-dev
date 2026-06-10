@@ -1,0 +1,35 @@
+<%# dashboard-admin/system-health.ejs %>
+<%# Variabel: healthChecks (array of {label, status, detail}) — opsional %>
+<div class="card bg-base-100 border border-base-300/70 shadow-sm">
+  <div class="card-body p-5">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="font-semibold text-base-content">System Health</h3>
+      <div class="badge badge-success gap-1 text-xs">
+        <span class="w-1.5 h-1.5 rounded-full bg-current"></span> Operational
+      </div>
+    </div>
+    <div class="space-y-3">
+      <% const checks = typeof healthChecks !== 'undefined' ? healthChecks : [
+        { label: 'Database', status: 'ok', detail: 'Connected' },
+        { label: 'Queue Worker', status: 'ok', detail: 'Running' },
+        { label: 'Socket.IO', status: 'ok', detail: 'Active' },
+        { label: 'Baileys Service', status: 'ok', detail: 'Initialized' }
+      ]; %>
+      <% checks.forEach(check => { %>
+      <div class="flex items-center justify-between py-2 border-b border-base-200 last:border-0">
+        <div class="flex items-center gap-3">
+          <% if (check.status === 'ok') { %>
+          <div class="w-2 h-2 rounded-full bg-success"></div>
+          <% } else if (check.status === 'warn') { %>
+          <div class="w-2 h-2 rounded-full bg-warning"></div>
+          <% } else { %>
+          <div class="w-2 h-2 rounded-full bg-error"></div>
+          <% } %>
+          <span class="text-sm font-medium text-base-content"><%= check.label %></span>
+        </div>
+        <span class="text-xs text-base-content/50"><%= check.detail %></span>
+      </div>
+      <% }) %>
+    </div>
+  </div>
+</div>

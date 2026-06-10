@@ -1,0 +1,58 @@
+<%# core/confirm-modal.ejs — Modal konfirmasi reusable via Alpine.js %>
+<%# Cara pakai: set window.confirmModal dari tombol aksi, lalu include partial ini sekali di bawah halaman %>
+
+<div
+  x-data="confirmModal()"
+  x-show="open"
+  x-cloak
+  class="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+  @open-confirm-modal.window="openModal($event.detail)"
+>
+  <div
+    class="bg-base-100 rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
+    @click.stop
+    x-transition
+  >
+    <div class="flex items-start gap-3 mb-4">
+      <div class="bg-error/10 rounded-full p-2 shrink-0">
+        <i data-lucide="triangle-alert" class="w-5 h-5 text-error"></i>
+      </div>
+      <div>
+        <h3 class="font-semibold text-base-content" x-text="title"></h3>
+        <p class="text-sm text-base-content/60 mt-1" x-text="message"></p>
+      </div>
+    </div>
+    <div class="flex justify-end gap-2 mt-6">
+      <button class="btn btn-ghost btn-sm" @click="close()">Batal</button>
+      <button
+        class="btn btn-error btn-sm"
+        @click="confirm()"
+        x-text="confirmLabel"
+      ></button>
+    </div>
+  </div>
+</div>
+
+<script>
+  function confirmModal() {
+    return {
+      open: false,
+      title: '',
+      message: '',
+      confirmLabel: 'Ya, lanjutkan',
+      onConfirm: null,
+      openModal({ title, message, confirmLabel, onConfirm }) {
+        this.title = title || 'Konfirmasi';
+        this.message = message || 'Apakah Anda yakin?';
+        this.confirmLabel = confirmLabel || 'Ya, lanjutkan';
+        this.onConfirm = onConfirm || null;
+        this.open = true;
+      },
+      confirm() {
+        if (typeof this.onConfirm === 'function') this.onConfirm();
+        this.close();
+      },
+      close() { this.open = false; }
+    }
+  }
+</script>

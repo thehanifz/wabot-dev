@@ -1,151 +1,127 @@
-# WA Gateway - Versi 3.9 (Edisi Keamanan & Hardening)
+# WA-Bot — WhatsApp Gateway Platform
 
-Selamat datang di WA Gateway, sebuah platform layanan untuk mengelola beberapa akun WhatsApp secara terpusat. Dibangun di atas library Baileys, layanan ini menyediakan gateway WhatsApp multi-sesi yang andal, aman, dan siap diintegrasikan dengan sistem otomasi seperti n8n.
+> **Versi 4.0.0** — Edisi UI/UX Refactor & Dashboard Lengkap
 
-**Versi 3.9** merupakan rilis besar yang berfokus pada **security hardening end-to-end**. Update ini menutup berbagai celah keamanan kritis seperti timing attack, SSRF, enumeration, dan cross-tenant access, sehingga sistem kini jauh lebih aman untuk penggunaan production multi-user.
+WA-Bot adalah platform WhatsApp Gateway multi-sesi yang dibangun di atas Node.js + Baileys. Mendukung multi-device, role-based access (admin/user), autentikasi via Google OAuth, dan integrasi webhook untuk otomasi seperti n8n.
 
----
-
-## 🔐 Fitur Baru di v3.9 (Security Hardening)
-
-### 🛡️ **Perlindungan API & Autentikasi**
-- **Constant-Time API Key Comparison**: Menggunakan `crypto.timingSafeEqual()` untuk mencegah timing attack saat validasi API key.
-- **Unified Auth Response (Anti-Enumeration)**: Semua kegagalan autentikasi kini selalu mengembalikan `401` dengan pesan generik.
-- **Tidak Bisa Dibedakan**: Penyerang tidak bisa membedakan apakah `sessionId` salah atau `apiKey` salah.
+Versi 4.0 adalah rilis besar yang memperkenalkan **design system baru** (Tailwind CSS + DaisyUI + Alpine.js), **partial system modular**, dan **aktivasi penuh seluruh menu dashboard** yang sebelumnya masih Coming Soon.
 
 ---
 
-### 🌐 **Webhook Security & SSRF Protection**
-- **DNS Re-validation**: Validasi DNS dilakukan saat runtime sebelum mengirim webhook untuk mencegah DNS rebinding attack.
-- **Private IP Blocking**: Semua IP internal diblokir (127.0.0.1, 10.x, 192.168.x, dll).
-- **HTTPS-Only Webhook**: Hanya URL `https://` yang diizinkan.
-- **HMAC Signature (Optional)**: Webhook dapat dilengkapi signature `X-WA-Signature` (SHA256) untuk verifikasi integritas.
+## ✨ Yang Baru di v4.0.0
+
+### 🎨 UI/UX Refactor Total (Phase 1)
+- **Design system baru** — Tailwind CSS + DaisyUI 4.x + Alpine.js 3.x di semua halaman
+- **Landing page** baru dengan hero, fitur, trust/security section, use-case, dan CTA Contact Sales
+- **Login page** dengan password toggle dan loading state
+- **Terms page** dengan TOC, anchor navigation, dan typography yang nyaman dibaca
+- **User dashboard** — panel operasional personal dengan KPI, device table, activity, quick actions
+- **Admin dashboard** — control center global dengan system health, audit feed, dan admin actions
+- **User management** — tabel user dengan role/status badge dan confirm modal
+- **Partial system modular** — ~20 partial reusable (core, nav, landing, dashboard-user, dashboard-admin, terms)
+- Sidebar user dan admin dipisahkan secara eksplisit
+- Seluruh halaman responsive desktop (1280px) dan mobile (375px)
+
+### 🔗 Missing Routes — Semua Menu Aktif
+- `/users/devices` — My Devices: daftar device personal + connect/disconnect/delete
+- `/users/messages` — Messages: riwayat pesan keluar + filter status + pagination
+- `/users/activity` — Activity: feed chronological pesan masuk & keluar
+- `/users/profile` — Profile: edit nama, email, dan ganti password
+- `/admin/devices` — All Devices: monitoring device semua user + filter + toggle media
+- `/admin/logs` — System Logs: log aktivitas global + filter tipe & status
+- `/admin/settings` — Platform Settings: konfigurasi sistem via UI, grouped per kategori
 
 ---
 
-### ⚙️ **HTTP & Resource Hardening**
-- **Axios Hardening**:
-  - Timeout dikurangi menjadi 5 detik
-  - Maks response: 100KB
-  - Maks request: 500KB
-  - Redirect dinonaktifkan
-- **Payload Limit Global**: Maksimal request body 2MB
-- **Webhook Endpoint Limit**: Khusus `/webhook/wabot` dibatasi 64KB
+## 🔐 Fitur Keamanan (Dipertahankan dari v3.9)
+
+- **Constant-Time API Key Comparison** — anti timing attack
+- **Anti-Enumeration** — semua auth failure selalu `401` generik
+- **SSRF Protection** — DNS re-validation + private IP blocking
+- **HTTPS-Only Webhook** + HMAC Signature
+- **Axios Hardening** — timeout, ukuran response/request, redirect off
+- **File Ownership Validation** — user hanya bisa akses file miliknya
+- **Rate Limiting** — endpoint sensitif dibatasi 20 req/15 menit
+- **Auto Cleanup Temp Files** — setiap 6 jam + saat startup
+- **CSRF Protection** — semua form POST menggunakan hidden CSRF token
+- **Input Sanitization** — mencegah stored XSS
 
 ---
 
-### 📁 **Multi-Tenant Security**
-- **File Ownership Validation**:
-  - User hanya bisa akses file miliknya sendiri
-  - Berlaku untuk `/uploads/` dan `/temp/`
-- **Cross-Tenant Access Blocked**: Tidak bisa lagi akses file user lain
+## 🏗️ Arsitektur Frontend
 
----
-
-### 🚦 **Rate Limiting & Abuse Prevention**
-- **Sensitive Endpoint Rate Limit**:
-  - `/accounts/:id/settings` dibatasi 20 request / 15 menit
-- **Proteksi Brute Force & Data Scraping**
-
----
-
-### 🧹 **Operational Security & Stability**
-- **Auto Cleanup Temp Files**:
-  - File temp dihapus setiap 6 jam
-  - Cleanup saat server startup
-- **Startup Recovery Improvement**
-- **Safer Logging**:
-  - Tidak lagi menyimpan full payload webhook ke log
-
----
-
-### 🧾 **Audit & Monitoring**
-- **Webhook Change Audit Log**:
-  - Mencatat perubahan webhook URL
-  - Menyimpan domain lama & baru
-  - Menyertakan user, IP, dan timestamp
-- **Security Event Logging**:
-  - SSRF blocked
-  - Unauthorized file access
-
----
-
-### 🧼 **Input Sanitization**
-- **Account Name Sanitization**:
-  - Menghapus karakter berbahaya (`< > " ' &`)
-  - Mencegah stored XSS
-
----
-
-## ✨ Fitur Utama
-
-### 🏢 **Fondasi Siap Publikasi**
-- PostgreSQL database (scalable)
-- Landing page profesional
-- Terms of Service flow
-
-### 👨‍👩‍👧‍👦 **Platform Multi-Pengguna**
-- Login Google OAuth
-- Dashboard per user
-- Session management mandiri
-
-### 🎛️ **Panel Admin**
-- Kontrol semua user & session
-- Limit session per user
-- Toggle izin media
-
-### ⚙️ **Fitur Teknis**
-- Session ID custom (YYMMXXXX)
-- Webhook per session
-- API Key per session
-- Queue message anti-block
-- Monitoring real-time (Socket.IO)
+```
+views/
+├── landing-page.ejs
+├── login.ejs
+├── terms.ejs
+├── dashboard.ejs          ← user dashboard
+├── admin-dashboard.ejs    ← admin control center
+├── user-management.ejs
+├── user-devices.ejs
+├── user-messages.ejs
+├── user-activity.ejs
+├── user-profile.ejs
+├── admin-devices.ejs
+├── admin-logs.ejs
+├── admin-settings.ejs
+└── partials/
+    ├── core/          → head, scripts, flash-alert, page-header, empty-state, confirm-modal
+    ├── nav/           → topbar-public, topbar-app, sidebar-user, sidebar-admin
+    ├── landing/       → hero, feature-grid, security-section, use-case-section, cta-footer
+    ├── dashboard-user/  → kpi-cards, device-table, recent-activity, quick-actions
+    ├── dashboard-admin/ → kpi-cards, system-health, recent-users, audit-feed, admin-actions
+    └── terms/         → hero, toc, sections
+```
 
 ---
 
 ## ⚠️ Disclaimer
 **Proyek ini bukan API resmi WhatsApp.**
 
-Aplikasi ini menggunakan WhatsApp Web automation (Baileys). Penggunaan untuk spam atau pelanggaran kebijakan dapat menyebabkan nomor diblokir permanen.
-
-Gunakan dengan bijak.
+Aplikasi ini menggunakan WhatsApp Web automation (Baileys). Penggunaan untuk spam atau pelanggaran kebijakan dapat menyebabkan nomor diblokir permanen. Gunakan dengan bijak.
 
 ---
 
 ## 🛠️ Tech Stack
-- Node.js, Express.js
-- Baileys
-- PostgreSQL + Sequelize
-- Socket.IO
-- Passport.js (Google OAuth)
-- Security: Helmet, CSRF, Rate Limit
+
+| Layer | Teknologi |
+|---|---|
+| Runtime | Node.js |
+| Framework | Express.js 4.18 |
+| Template | EJS 3.1 |
+| CSS | Tailwind CSS + DaisyUI 4.x (CDN) |
+| JS Interactivity | Alpine.js 3.x (CDN) |
+| Icons | Lucide Icons (CDN) |
+| Font | Inter (Google Fonts) |
+| WhatsApp | Baileys (@whiskeysockets) |
+| Database | PostgreSQL + Sequelize |
+| Auth | Passport.js (Google OAuth) |
+| Realtime | Socket.IO 4.7 |
+| Security | Helmet, CSRF, Rate Limit, bcryptjs |
 
 ---
 
 ## 🚀 Instalasi
 
-### 1. Clone Repo
 ```bash
+# 1. Clone
 git clone https://github.com/thehanifz/wabot-dev.git
 cd wabot-dev
-```
 
-### 2. Install
-```bash
+# 2. Install dependencies
 npm install
-```
 
-### 3. Setup Environment
-```bash
+# 3. Setup environment
 cp .env.example .env
-```
+# Edit .env sesuai konfigurasi Anda
 
-### 4. Run
-```bash
+# 4. Run
 npm start
 ```
 
 ---
 
 ## ✅ Status
-✅ Production Ready (Security Hardened v3.9.0)
+
+**v4.0.0** — Production Ready — UI/UX Refactor + Full Dashboard
