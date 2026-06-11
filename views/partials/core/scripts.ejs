@@ -1,9 +1,6 @@
-<%# core/scripts.ejs — Alpine.js dan Socket.IO client. Include sebelum </body> %>
+<%# core/scripts.ejs — Lucide init + Socket.IO (opsional). Alpine sudah di head.ejs %>
 
-<!-- Alpine.js -->
-<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
-
-<!-- Lucide icons init (setelah DOM ready) -->
+<!-- Lucide icons init -->
 <script>
   document.addEventListener('DOMContentLoaded', () => {
     if (typeof lucide !== 'undefined') lucide.createIcons();
