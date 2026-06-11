@@ -11,10 +11,12 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
 
-<!-- Tailwind CSS + DaisyUI -->
+<!-- DaisyUI (harus sebelum Tailwind config) -->
 <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.10/dist/full.min.css" rel="stylesheet" />
-<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Tailwind config HARUS sebelum script CDN -->
 <script>
+  window.tailwind = window.tailwind || {};
   tailwind.config = {
     theme: {
       extend: {
@@ -56,17 +58,18 @@
         }
       ]
     }
-  }
+  };
 </script>
+
+<!-- Tailwind CSS CDN -->
+<script src="https://cdn.tailwindcss.com"></script>
 
 <!-- Lucide Icons -->
 <script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
 
 <style>
   body { font-family: 'Inter', ui-sans-serif, system-ui; }
-  /* Smooth scroll untuk TOC anchor links */
   html { scroll-behavior: smooth; }
-  /* Custom scrollbar tipis */
   ::-webkit-scrollbar { width: 5px; height: 5px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
