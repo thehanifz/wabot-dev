@@ -54,7 +54,7 @@
                     <div class="text-xs text-base-content/40 font-mono"><%= device.sessionId %></div>
                   </td>
                   <td>
-                    <div class="text-sm text-base-content/80"><%= device.User ? (device.User.name || device.User.email) : '—' %></div>
+                    <div class="text-sm text-base-content/80"><%= device.User ? (device.User.name || device.User.email) : '\u2014' %></div>
                     <div class="text-xs text-base-content/40"><%= device.User ? device.User.email : '' %></div>
                   </td>
                   <td>
@@ -73,21 +73,28 @@
                     </form>
                   </td>
                   <td class="text-xs text-base-content/50">
-                    <%= device.lastConnectedAt ? new Date(device.lastConnectedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '—' %>
+                    <%= device.lastConnectedAt ? new Date(device.lastConnectedAt).toLocaleString('id-ID', { dateStyle: 'short', timeStyle: 'short' }) : '\u2014' %>
                   </td>
                   <td class="text-right">
-                    <form method="POST" action="/admin/accounts/delete/<%= device.id %>" class="inline">
+                    <%# Form delete — id unik per device, dipisah dari tombol trigger %>
+                    <form
+                      id="admin-delete-device-<%= device.id %>"
+                      method="POST"
+                      action="/admin/accounts/delete/<%= device.id %>">
                       <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                      <button type="button" class="btn btn-ghost btn-xs text-error"
-                        @click="$dispatch('open-confirm-modal', {
-                          title: 'Hapus Device',
-                          message: 'Aksi ini tidak dapat dibatalkan.',
-                          confirmLabel: 'Ya, Hapus',
-                          onConfirm: () => $el.closest('form').submit()
-                        })">
-                        <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
-                      </button>
                     </form>
+                    <%# Tombol trigger modal — pakai formId pattern %>
+                    <button
+                      type="button"
+                      class="btn btn-ghost btn-xs text-error"
+                      @click="$dispatch('open-confirm-modal', {
+                        title: 'Hapus Device',
+                        message: 'Aksi ini tidak dapat dibatalkan.',
+                        confirmLabel: 'Ya, Hapus',
+                        formId: 'admin-delete-device-<%= device.id %>'
+                      })">
+                      <i data-lucide="trash-2" class="w-3.5 h-3.5"></i>
+                    </button>
                   </td>
                 </tr>
                 <% }) %>
