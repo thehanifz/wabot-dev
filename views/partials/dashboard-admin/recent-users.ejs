@@ -1,5 +1,5 @@
 <%# dashboard-admin/recent-users.ejs %>
-<%# Variabel: recentUsers (array of {displayName, email, role, createdAt}) — opsional %>
+<%# Variabel: recentUsers (array of {name, email, role, createdAt}) — opsional %>
 <div class="card bg-base-100 border border-base-300/70 shadow-sm">
   <div class="card-body p-5">
     <div class="flex items-center justify-between mb-4">
@@ -14,11 +14,11 @@
       <li class="flex items-center gap-3">
         <div class="avatar placeholder shrink-0">
           <div class="bg-brand-100 text-brand-700 rounded-full w-8">
-            <span class="text-xs font-bold"><%= u.displayName ? u.displayName.charAt(0).toUpperCase() : 'U' %></span>
+            <span class="text-xs font-bold"><%= (u.name || u.email || 'U').charAt(0).toUpperCase() %></span>
           </div>
         </div>
         <div class="flex-1 min-w-0">
-          <p class="text-sm font-medium text-base-content truncate"><%= u.displayName %></p>
+          <p class="text-sm font-medium text-base-content truncate"><%= u.name || u.email %></p>
           <p class="text-xs text-base-content/40 truncate"><%= u.email %></p>
         </div>
         <span class="badge badge-sm <%= u.role === 'admin' ? 'badge-primary' : 'badge-ghost' %>">

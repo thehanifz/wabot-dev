@@ -30,12 +30,12 @@
         <div class="avatar placeholder">
           <div class="bg-brand-600 text-white rounded-full w-7">
             <span class="text-xs font-semibold">
-              <%= user && user.displayName ? user.displayName.charAt(0).toUpperCase() : 'U' %>
+              <%= user ? (user.name || user.email || 'U').charAt(0).toUpperCase() : 'U' %>
             </span>
           </div>
         </div>
         <span class="text-sm font-medium hidden sm:inline">
-          <%= user && user.displayName ? user.displayName.split(' ')[0] : 'User' %>
+          <%= user ? (user.name || user.email.split('@')[0]) : 'User' %>
         </span>
         <i data-lucide="chevron-down" class="w-3.5 h-3.5 text-base-content/50"></i>
       </button>
@@ -46,7 +46,7 @@
         class="menu menu-sm dropdown-content mt-2 z-[1] p-2 shadow-lg bg-base-100 rounded-xl w-52 border border-base-300"
       >
         <li class="menu-title px-3 py-2">
-          <span class="font-medium text-base-content text-sm"><%= user ? user.displayName : '' %></span>
+          <span class="font-medium text-base-content text-sm"><%= user ? (user.name || user.email) : '' %></span>
           <span class="text-xs text-base-content/50"><%= user ? user.email : '' %></span>
         </li>
         <div class="divider my-0.5"></div>
@@ -56,7 +56,7 @@
           </a>
         </li>
         <li>
-          <a href="/users/settings" class="gap-2">
+          <a href="/users/profile" class="gap-2">
             <i data-lucide="settings" class="w-4 h-4"></i> Pengaturan
           </a>
         </li>
