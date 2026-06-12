@@ -5,7 +5,7 @@ const bcrypt = require('bcryptjs');
 const logger = require('../config/logger');
 const PAGE_SIZE = 20;
 
-// ─── GET /users/devices ───────────────────────────────────────────────────────
+// ─── GET /users/devices ───────────────────────────────────────────────────────────────────────────
 exports.getDevices = async (req, res, next) => {
   try {
     const devices = await WhatsAppAccount.findAll({
@@ -25,13 +25,12 @@ exports.getDevices = async (req, res, next) => {
   }
 };
 
-// ─── GET /users/messages ──────────────────────────────────────────────────────
+// ─── GET /users/messages ──────────────────────────────────────────────────────────────────────────
 exports.getMessages = async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const status = req.query.status || '';
 
-    // Ambil semua accountId milik user
     const userAccounts = await WhatsAppAccount.findAll({
       where: { userId: req.user.id },
       attributes: ['id', 'name', 'sessionId']
@@ -68,7 +67,7 @@ exports.getMessages = async (req, res, next) => {
   }
 };
 
-// ─── GET /users/activity ──────────────────────────────────────────────────────
+// ─── GET /users/activity ──────────────────────────────────────────────────────────────────────────
 exports.getActivity = async (req, res, next) => {
   try {
     const userAccounts = await WhatsAppAccount.findAll({
@@ -77,7 +76,6 @@ exports.getActivity = async (req, res, next) => {
     });
     const accountIds = userAccounts.map(a => a.id);
 
-    // Ambil 50 pesan keluar terbaru
     const outgoing = await OutgoingMessage.findAll({
       where: { accountId: { [Op.in]: accountIds } },
       include: [{ model: WhatsAppAccount, attributes: ['name', 'sessionId'] }],
@@ -85,7 +83,6 @@ exports.getActivity = async (req, res, next) => {
       limit: 50
     });
 
-    // Ambil 50 pesan masuk terbaru
     const incoming = await Message.findAll({
       where: { accountId: { [Op.in]: accountIds } },
       include: [{ model: WhatsAppAccount, attributes: ['name', 'sessionId'] }],
@@ -93,7 +90,6 @@ exports.getActivity = async (req, res, next) => {
       limit: 50
     });
 
-    // Gabung & sort chronological terbaru di atas
     const feed = [
       ...outgoing.map(m => ({ type: 'outgoing', data: m, createdAt: m.createdAt })),
       ...incoming.map(m => ({ type: 'incoming', data: m, createdAt: m.createdAt }))
@@ -112,7 +108,7 @@ exports.getActivity = async (req, res, next) => {
   }
 };
 
-// ─── GET /users/profile ───────────────────────────────────────────────────────
+// ─── GET /users/profile ───────────────────────────────────────────────────────────────────────────
 exports.getProfile = async (req, res, next) => {
   try {
     const userData = await User.findByPk(req.user.id);
@@ -129,30 +125,28 @@ exports.getProfile = async (req, res, next) => {
   }
 };
 
-// ─── POST /users/profile ──────────────────────────────────────────────────────
+// ─── POST /users/profile ──────────────────────────────────────────────────────────────────────────
 exports.updateProfile = async (req, res, next) => {
   try {
     const { name, email, currentPassword, newPassword, confirmPassword } = req.body;
     const userData = await User.findByPk(req.user.id);
 
-    // Update nama & email
     if (name && name.trim()) userData.name = name.trim();
     if (email && email.trim()) userData.email = email.trim();
 
-    // Ganti password (opsional)
     if (newPassword && newPassword.trim()) {
       if (!currentPassword) {
-        req.flash('error', 'Password saat ini wajib diisi untuk mengganti password.');
+        req.flash('error_msg', 'Password saat ini wajib diisi untuk mengganti password.');
         return res.redirect('/users/profile');
       }
       if (newPassword !== confirmPassword) {
-        req.flash('error', 'Konfirmasi password baru tidak cocok.');
+        req.flash('error_msg', 'Konfirmasi password baru tidak cocok.');
         return res.redirect('/users/profile');
       }
       if (userData.password) {
         const isMatch = await bcrypt.compare(currentPassword, userData.password);
         if (!isMatch) {
-          req.flash('error', 'Password saat ini salah.');
+          req.flash('error_msg', 'Password saat ini salah.');
           return res.redirect('/users/profile');
         }
       }
@@ -160,11 +154,11 @@ exports.updateProfile = async (req, res, next) => {
     }
 
     await userData.save();
-    req.flash('success', 'Profil berhasil diperbarui.');
+    req.flash('success_msg', 'Profil berhasil diperbarui.');
     res.redirect('/users/profile');
   } catch (err) {
     logger.error('[userPages.updateProfile]', err);
-    req.flash('error', 'Terjadi kesalahan saat memperbarui profil.');
+    req.flash('error_msg', 'Terjadi kesalahan saat memperbarui profil.');
     res.redirect('/users/profile');
   }
 };

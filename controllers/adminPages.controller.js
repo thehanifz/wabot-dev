@@ -5,7 +5,7 @@ const logger = require('../config/logger');
 const PAGE_SIZE_DEVICES = 20;
 const PAGE_SIZE_LOGS = 50;
 
-// ─── GET /admin/devices ───────────────────────────────────────────────────────
+// ─── GET /admin/devices ───────────────────────────────────────────────────────────────────────────
 exports.getDevices = async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -45,19 +45,15 @@ exports.getDevices = async (req, res, next) => {
   }
 };
 
-// ─── GET /admin/logs ──────────────────────────────────────────────────────────
+// ─── GET /admin/logs ─────────────────────────────────────────────────────────────────────────────
 exports.getLogs = async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
     const filterType = req.query.type || '';
     const filterStatus = req.query.status || '';
 
-    // Outgoing messages
     const outgoingWhere = {};
     if (filterStatus) outgoingWhere.status = filterStatus;
-    if (filterType === 'incoming') {
-      // Skip outgoing jika filter incoming
-    }
 
     const outgoing = filterType !== 'incoming' ? await OutgoingMessage.findAll({
       where: outgoingWhere,
@@ -93,12 +89,11 @@ exports.getLogs = async (req, res, next) => {
   }
 };
 
-// ─── GET /admin/settings ──────────────────────────────────────────────────────
+// ─── GET /admin/settings ──────────────────────────────────────────────────────────────────────────
 exports.getSettings = async (req, res, next) => {
   try {
     const allSettings = await Setting.findAll({ order: [['group', 'ASC'], ['key', 'ASC']] });
 
-    // Group berdasarkan kolom group
     const grouped = allSettings.reduce((acc, s) => {
       const g = s.group || 'general';
       if (!acc[g]) acc[g] = [];
@@ -119,23 +114,35 @@ exports.getSettings = async (req, res, next) => {
   }
 };
 
-// ─── POST /admin/settings ─────────────────────────────────────────────────────
+// ─── POST /admin/settings ────────────────────────────────────────────────────────────────────────
 exports.updateSettings = async (req, res, next) => {
   try {
-    const updates = req.body; // { key: value, ... }
-    // Exclude _csrf dan _method
+    const updates = req.body;
     const skipKeys = ['_csrf', '_method'];
 
+    // BUG-07: Handle boolean __off keys terlebih dahulu
+    // Pass 1: upsert semua key normal (skip _csrf, _method, dan __off)
     for (const [key, value] of Object.entries(updates)) {
       if (skipKeys.includes(key)) continue;
+      if (key.endsWith('__off')) continue;
       await Setting.upsert({ key, value: String(value) });
     }
 
-    req.flash('success', 'Pengaturan berhasil disimpan.');
+    // Pass 2: handle boolean yang tidak dicentang (ambil dari __off keys)
+    for (const [key] of Object.entries(updates)) {
+      if (!key.endsWith('__off')) continue;
+      const realKey = key.replace('__off', '');
+      // Hanya upsert false jika checkbox-nya tidak hadir di body
+      if (!(realKey in updates)) {
+        await Setting.upsert({ key: realKey, value: 'false' });
+      }
+    }
+
+    req.flash('success_msg', 'Pengaturan berhasil disimpan.');
     res.redirect('/admin/settings');
   } catch (err) {
     logger.error('[adminPages.updateSettings]', err);
-    req.flash('error', 'Terjadi kesalahan saat menyimpan pengaturan.');
+    req.flash('error_msg', 'Terjadi kesalahan saat menyimpan pengaturan.');
     res.redirect('/admin/settings');
   }
 };
