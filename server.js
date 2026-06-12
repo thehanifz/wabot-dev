@@ -25,8 +25,6 @@ const app = express();
 const server = http.createServer(app);
 
 // H-04 FIX: Batasi Socket.IO hanya dari origin yang sama dengan BASE_URL
-// Pakai BASE_URL yang sudah ada di .env (sama yang dipakai Google OAuth callback).
-// Contoh: BASE_URL=https://wa.domain-anda.com
 const allowedOrigins = process.env.BASE_URL
     ? [process.env.BASE_URL.trim().replace(/\/$/, '')]
     : [];
@@ -34,9 +32,7 @@ const allowedOrigins = process.env.BASE_URL
 const io = new Server(server, {
     cors: {
         origin: (origin, callback) => {
-            // Izinkan koneksi tanpa origin (same-origin browser request)
             if (!origin) return callback(null, true);
-            // Jika BASE_URL tidak diatur, izinkan semua (fallback dev mode)
             if (allowedOrigins.length === 0) return callback(null, true);
             if (allowedOrigins.includes(origin)) return callback(null, true);
             logger.warn(`[Socket.IO] Origin ditolak: ${origin}`);
@@ -49,21 +45,45 @@ const io = new Server(server, {
 
 // === 1. MIDDLEWARE DASAR ===
 app.set('trust proxy', 1);
-// REQ-24 & REQ-19: Add payload size limits to prevent DoS and disk exhaustion
 app.use(express.urlencoded({ extended: true, limit: '2mb' }));
 app.use(express.json({ limit: '2mb' }));
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(cookieParser());
 app.use(helmet.contentSecurityPolicy({
     directives: {
-        "default-src": ["'self'"],
-        "script-src": ["'self'", "https://cdn.tailwindcss.com", "https://cdnjs.cloudflare.com"],
-        // MEDIUM FIX: Hapus 'unsafe-inline' dari style-src
-        // Jika ada inline style yang diperlukan, pindahkan ke file .css eksternal
-        "style-src": ["'self'", "https://cdn.jsdelivr.net", "https://cdnjs.cloudflare.com"],
-        "img-src": ["'self'", "data:", "https://*"],
-        "connect-src": ["'self'", "ws:", "wss:"],
-        "font-src": ["'self'", "https://cdnjs.cloudflare.com"]
+        'default-src': ["'self'"],
+
+        // Script: self + CDN yang dipakai UI
+        'script-src': [
+            "'self'",
+            "'unsafe-inline'",          // Diperlukan oleh Tailwind CDN (inline config)
+            "https://cdn.tailwindcss.com",
+            "https://cdn.jsdelivr.net", // Alpine.js
+            "https://unpkg.com",        // Lucide Icons
+            "https://cdnjs.cloudflare.com",
+        ],
+
+        // Style: self + CDN yang dipakai UI
+        'style-src': [
+            "'self'",
+            "'unsafe-inline'",          // Diperlukan oleh Tailwind CDN (inject style tag)
+            "https://cdn.jsdelivr.net", // DaisyUI
+            "https://fonts.googleapis.com",
+            "https://cdnjs.cloudflare.com",
+        ],
+
+        // Font: self + Google Fonts
+        'font-src': [
+            "'self'",
+            "https://fonts.gstatic.com",
+            "https://cdnjs.cloudflare.com",
+        ],
+
+        // Gambar: self + data URI (untuk SVG inline di hero)
+        'img-src': ["'self'", "data:", "https://*"],
+
+        // WebSocket untuk Socket.IO
+        'connect-src': ["'self'", "ws:", "wss:"],
     },
 }));
 
@@ -84,12 +104,10 @@ const sessionMiddleware = session({
 app.use(sessionMiddleware);
 
 // H-04 FIX: Rate limit per-IP pada Socket.IO handshake
-// Mencegah flood koneksi yang bisa exhausting memory / CPU
 const socketConnectionAttempts = new Map();
-const SOCKET_WINDOW_MS = 60 * 1000;   // 1 menit
-const SOCKET_MAX_ATTEMPTS = 30;        // maks 30 handshake/IP/menit
+const SOCKET_WINDOW_MS = 60 * 1000;
+const SOCKET_MAX_ATTEMPTS = 30;
 
-// Bagikan sesi Express ke Socket.IO agar socket bisa membaca session.passport.user
 io.use((socket, next) => {
     const forwardedFor = socket.handshake.headers['x-forwarded-for'];
     const ipAddress = (Array.isArray(forwardedFor) ? forwardedFor[0] : forwardedFor || socket.handshake.address || 'unknown')
@@ -182,7 +200,6 @@ app.use((err, req, res, next) => {
     }
 
     if (expectsJson) {
-        // H-02 FIX: Jangan pernah kirim error.message atau stack ke client di production
         return res.status(500).json({
             error: 'An internal server error occurred.',
         });
