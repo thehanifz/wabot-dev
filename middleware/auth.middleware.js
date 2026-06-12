@@ -25,17 +25,13 @@ function hasRole(roles) {
     };
 }
 
+// Middleware: cek apakah user sudah accept terms
+// Kalau belum, redirect ke halaman onboarding terms
 function ensureTermsAccepted(req, res, next) {
     if (req.user && req.user.hasAcceptedTerms) {
         return next();
     }
-    
-    const allowedPaths = ['/terms', '/logout'];
-    if (allowedPaths.some(path => req.path.startsWith(path))) {
-        return next();
-    }
-
-    res.redirect('/auth/terms');
+    res.redirect('/auth/terms/onboarding');
 }
 
 module.exports = {
@@ -44,4 +40,3 @@ module.exports = {
     hasRole,
     ensureTermsAccepted,
 };
-
