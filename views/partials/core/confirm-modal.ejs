@@ -1,5 +1,5 @@
 <%# core/confirm-modal.ejs — Modal konfirmasi reusable via Alpine.js %>
-<%# Cara pakai: set window.confirmModal dari tombol aksi, lalu include partial ini sekali di bawah halaman %>
+<%# Cara pakai: $dispatch('open-confirm-modal', { title, message, confirmLabel, formId }) %>
 
 <div
   x-data="confirmModal()"
@@ -41,15 +41,22 @@
       message: '',
       confirmLabel: 'Ya, lanjutkan',
       onConfirm: null,
-      openModal({ title, message, confirmLabel, onConfirm }) {
+      formId: null,
+      openModal({ title, message, confirmLabel, onConfirm, formId }) {
         this.title = title || 'Konfirmasi';
         this.message = message || 'Apakah Anda yakin?';
         this.confirmLabel = confirmLabel || 'Ya, lanjutkan';
         this.onConfirm = onConfirm || null;
+        this.formId = formId || null;
         this.open = true;
       },
       confirm() {
-        if (typeof this.onConfirm === 'function') this.onConfirm();
+        if (this.formId) {
+          const form = document.getElementById(this.formId);
+          if (form) form.submit();
+        } else if (typeof this.onConfirm === 'function') {
+          this.onConfirm();
+        }
         this.close();
       },
       close() { this.open = false; }

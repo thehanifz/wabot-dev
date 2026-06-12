@@ -63,23 +63,27 @@
                 </button>
               </form>
               <% } %>
-              <form method="POST" action="/accounts/delete/<%= device.id %>"
-                    @submit.prevent="$dispatch('open-confirm-modal', {
-                      title: 'Hapus Device',
-                      message: 'Yakin ingin menghapus device ini? Semua data terkait akan ikut terhapus.',
-                      confirmLabel: 'Ya, Hapus',
-                      onConfirm: () => $el.submit()
-                    })">
+
+              <%# Form delete — id unik per device, dipisah dari tombol trigger %>
+              <form
+                id="delete-device-<%= device.id %>"
+                method="POST"
+                action="/accounts/delete/<%= device.id %>">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button type="button" class="btn btn-ghost btn-sm text-error" @click="$dispatch('open-confirm-modal', {
-                  title: 'Hapus Device',
-                  message: 'Yakin ingin menghapus device ini? Semua data terkait akan ikut terhapus.',
-                  confirmLabel: 'Ya, Hapus',
-                  onConfirm: () => $el.closest('form').submit()
-                })">
-                  <i data-lucide="trash-2" class="w-4 h-4"></i>
-                </button>
               </form>
+
+              <%# Tombol trigger modal — pakai formId, bukan onConfirm closure %>
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm text-error"
+                @click="$dispatch('open-confirm-modal', {
+                  title: 'Hapus Device',
+                  message: 'Yakin ingin menghapus perangkat &quot;<%= device.name %>&quot;? Semua data terkait akan ikut terhapus.',
+                  confirmLabel: 'Ya, Hapus',
+                  formId: 'delete-device-<%= device.id %>'
+                })">
+                <i data-lucide="trash-2" class="w-4 h-4"></i>
+              </button>
             </div>
           </div>
         </div>
