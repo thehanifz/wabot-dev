@@ -36,7 +36,8 @@
                   </div>
                   <div class="flex-1 max-w-xs">
                     <% if (setting.type === 'boolean') { %>
-                    <input type="hidden" name="<%= setting.key %>" value="false">
+                    <%# BUG-07: pakai suffix __off pada hidden input agar tidak race condition %>
+                    <input type="hidden" name="<%= setting.key %>__off" value="false">
                     <input type="checkbox" id="setting_<%= setting.key %>" name="<%= setting.key %>"
                            class="toggle toggle-primary"
                            value="true" <%= setting.value === 'true' ? 'checked' : '' %> />
