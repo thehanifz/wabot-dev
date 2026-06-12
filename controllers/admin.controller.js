@@ -1,4 +1,4 @@
-const { WhatsAppAccount, User } = require('../models');
+const { WhatsAppAccount, User, OutgoingMessage } = require('../models');
 const BaileysService = require('../services/baileys.service');
 const logger = require('../config/logger');
 const { Op } = require('sequelize');
@@ -14,15 +14,12 @@ const getSafeAdminRedirectTarget = (req) => {
     }
 
     try {
-        // Parse referer sebagai URL relatif terhadap localhost (bukan redirect ke sana)
         const refererUrl = new URL(referer, 'http://localhost');
 
-        // Pastikan path-nya di bawah /admin, tidak kemana-mana
         if (!refererUrl.pathname.startsWith('/admin')) {
             return fallback;
         }
 
-        // Hanya izinkan query params whitelist
         const safeParams = new URLSearchParams();
         const userParam = refererUrl.searchParams.get('user');
         const statusParam = refererUrl.searchParams.get('status');
@@ -40,14 +37,12 @@ const getSafeAdminRedirectTarget = (req) => {
 
 const getAdminDashboardPage = async (req, res) => {
     try {
-        // ================== LOGIKA FILTER BARU DI SINI ==================
         const { user: selectedUser = 'all', status: selectedStatus = 'all' } = req.query;
 
         const whereClause = {
-            userId: { [Op.ne]: null } // Selalu pastikan akun punya user
+            userId: { [Op.ne]: null }
         };
 
-        // Tambahkan filter status jika dipilih
         if (selectedStatus !== 'all') {
             if (selectedStatus === 'other') {
                 whereClause.status = { [Op.notIn]: ['connected', 'disconnected'] };
@@ -56,14 +51,12 @@ const getAdminDashboardPage = async (req, res) => {
             }
         }
 
-        // Tambahkan filter user jika dipilih
         const includeOptions = [{
             model: User,
             attributes: ['email'],
             where: selectedUser !== 'all' ? { email: selectedUser } : null,
-            required: selectedUser !== 'all' // Gunakan INNER JOIN jika user difilter
+            required: selectedUser !== 'all'
         }];
-        // =============================================================
 
         const accounts = await WhatsAppAccount.findAll({
             where: whereClause,
@@ -73,12 +66,43 @@ const getAdminDashboardPage = async (req, res) => {
 
         const allUsers = await User.findAll({ order: [['email', 'ASC']] });
 
+        // ─── BUG-06: KPI vars ────────────────────────────────────────────
+        const totalUsers = allUsers.length;
+        const totalSessions = accounts.filter(a => a.status === 'connected').length;
+
+        const todayStart = new Date();
+        todayStart.setHours(0, 0, 0, 0);
+        const failedJobs = await OutgoingMessage.count({
+            where: { status: 'failed', createdAt: { [Op.gte]: todayStart } }
+        });
+
+        const uptimeSec = process.uptime();
+        const uptimeH = Math.floor(uptimeSec / 3600);
+        const uptimeM = Math.floor((uptimeSec % 3600) / 60);
+        const systemUptime = `${uptimeH}j ${uptimeM}m`;
+
+        // ─── BUG-06: Widget recent users ──────────────────────────────────
+        const recentUsers = await User.findAll({
+            order: [['createdAt', 'DESC']],
+            limit: 5,
+            attributes: ['id', 'name', 'email', 'role', 'createdAt']
+        });
+
+        // ─── BUG-06: Audit feed — empty state (OQ-01, impl nyata di v-next) ───
+        const auditLogs = [];
+
         res.render('admin-dashboard', {
             user: req.user,
-            accounts: accounts,
-            allUsers: allUsers,
-            selectedUser: selectedUser, // Kirim nilai filter ke view
-            selectedStatus: selectedStatus // Kirim nilai filter ke view
+            accounts,
+            allUsers,
+            selectedUser,
+            selectedStatus,
+            totalUsers,
+            totalSessions,
+            failedJobs,
+            systemUptime,
+            recentUsers,
+            auditLogs
         });
     } catch (error) {
         logger.error('Gagal memuat halaman admin panel:', error);
@@ -102,7 +126,6 @@ const deleteAccountAsAdmin = async (req, res) => {
         logger.error(`Gagal menghapus sesi ${accountId} oleh admin:`, error);
         req.flash('error_msg', 'Gagal menghapus sesi.');
     }
-    // H-01 FIX: Gunakan redirect aman, jangan ikuti referer mentah
     res.redirect(getSafeAdminRedirectTarget(req));
 };
 
@@ -122,7 +145,6 @@ const toggleMedia = async (req, res) => {
         logger.error('Gagal mengubah status media:', error);
         req.flash('error_msg', 'Gagal mengubah izin media.');
     }
-    // H-01 FIX: Gunakan redirect aman, jangan ikuti referer mentah
     res.redirect(getSafeAdminRedirectTarget(req));
 };
 
