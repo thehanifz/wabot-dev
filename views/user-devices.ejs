@@ -11,7 +11,7 @@
       <%- include('partials/core/page-header', {
         pageTitle: 'My Devices',
         pageSubtitle: 'Kelola perangkat WhatsApp yang terhubung ke akun Anda.',
-        pageAction: '<a href="/accounts/add" class="btn btn-sm btn-primary gap-2"><i data-lucide="plus" class="w-4 h-4"></i>Add Device</a>'
+        pageAction: '<a href="/users/devices/new" class="btn btn-sm btn-primary gap-2"><i data-lucide="plus" class="w-4 h-4"></i>Add Device</a>'
       }) %>
 
       <% if (devices && devices.length > 0) { %>
@@ -64,7 +64,6 @@
               </form>
               <% } %>
 
-              <%# Form delete — id unik per device, dipisah dari tombol trigger %>
               <form
                 id="delete-device-<%= device.id %>"
                 method="POST"
@@ -72,7 +71,6 @@
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               </form>
 
-              <%# Tombol trigger modal — pakai formId, bukan onConfirm closure %>
               <button
                 type="button"
                 class="btn btn-ghost btn-sm text-error"
@@ -94,7 +92,7 @@
         emptyIcon: 'smartphone',
         emptyTitle: 'Belum ada device',
         emptyDesc: 'Tambahkan perangkat WhatsApp pertama Anda untuk mulai mengirim pesan.',
-        emptyAction: '<a href="/accounts/add" class="btn btn-primary btn-sm gap-2"><i data-lucide="plus" class="w-4 h-4"></i>Add Device</a>'
+        emptyAction: '<a href="/users/devices/new" class="btn btn-primary btn-sm gap-2"><i data-lucide="plus" class="w-4 h-4"></i>Add Device</a>'
       }) %>
       <% } %>
 
