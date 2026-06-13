@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="wabot">
+<head><%- include('partials/core/head', { title: 'Add Device' }) %></head>
+<body class="bg-base-200 min-h-screen">
+<div class="drawer lg:drawer-open">
+  <input id="app-drawer" type="checkbox" class="drawer-toggle" />
+  <div class="drawer-content flex flex-col min-h-screen">
+    <%- include('partials/nav/topbar-app') %>
+    <main class="flex-1 max-w-2xl mx-auto w-full px-4 sm:px-6 py-6">
+      <%- include('partials/core/flash-alert') %>
+      <%- include('partials/core/page-header', {
+        pageTitle: 'Add Device',
+        pageSubtitle: 'Tambahkan perangkat WhatsApp baru ke akun Anda.',
+        pageAction: '<a href="/users/devices" class="btn btn-sm btn-ghost gap-2"><i data-lucide="arrow-left" class="w-4 h-4"></i>Kembali</a>'
+      }) %>
+
+      <% if (deviceCount >= sessionLimit) { %>
+      <%- include('partials/core/empty-state', {
+        emptyIcon: 'shield-alert',
+        emptyTitle: 'Batas Device Tercapai',
+        emptyDesc: 'Anda sudah menggunakan ' + deviceCount + ' dari ' + sessionLimit + ' slot device. Hubungi admin untuk menambah kuota.',
+        emptyAction: '<a href="/users/devices" class="btn btn-primary btn-sm gap-2"><i data-lucide="smartphone" class="w-4 h-4"></i>Lihat Device Saya</a>'
+      }) %>
+      <% } else { %>
+
+      <!-- Info kuota -->
+      <div class="alert alert-info mb-5 text-sm">
+        <i data-lucide="info" class="w-4 h-4 shrink-0"></i>
+        <span>Anda menggunakan <strong><%= deviceCount %></strong> dari <strong><%= sessionLimit %></strong> slot device yang tersedia.</span>
+      </div>
+
+      <div class="card bg-base-100 border border-base-300/70 shadow-sm">
+        <div class="card-body p-6">
+          <form method="POST" action="/users/devices">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+            <!-- Nama Device -->
+            <div class="form-control mb-5">
+              <label class="label pb-1" for="device-name">
+                <span class="label-text font-medium">Nama Device <span class="text-error">*</span></span>
+              </label>
+              <input
+                id="device-name"
+                type="text"
+                name="name"
+                class="input input-bordered w-full"
+                placeholder="Contoh: WhatsApp Marketing, Bot Support..."
+                maxlength="100"
+                required
+                autofocus />
+              <label class="label pt-1">
+                <span class="label-text-alt text-base-content/50">Nama untuk mengidentifikasi perangkat ini. Maks 100 karakter.</span>
+              </label>
+            </div>
+
+            <!-- Info setelah tambah -->
+            <div class="bg-base-200 rounded-xl p-4 mb-6 text-sm text-base-content/70">
+              <div class="flex gap-3 items-start">
+                <i data-lucide="lightbulb" class="w-4 h-4 mt-0.5 shrink-0 text-warning"></i>
+                <div>
+                  <p class="font-medium text-base-content mb-1">Langkah selanjutnya setelah menambah device:</p>
+                  <ol class="list-decimal list-inside space-y-1">
+                    <li>Klik tombol <strong>Connect</strong> pada device yang baru ditambahkan</li>
+                    <li>Scan QR code menggunakan WhatsApp di smartphone Anda</li>
+                    <li>Device siap digunakan untuk mengirim pesan via API</li>
+                  </ol>
+                </div>
+              </div>
+            </div>
+
+            <div class="flex justify-end gap-3">
+              <a href="/users/devices" class="btn btn-ghost">Batal</a>
+              <button type="submit" class="btn btn-primary gap-2">
+                <i data-lucide="plus" class="w-4 h-4"></i>
+                Tambah Device
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <% } %>
+    </main>
+  </div>
+  <div class="drawer-side z-40">
+    <label for="app-drawer" aria-label="close sidebar" class="drawer-overlay"></label>
+    <%- include('partials/nav/sidebar-user') %>
+  </div>
+</div>
+<%- include('partials/core/scripts', { loadSocketIO: false }) %>
+</body>
+</html>

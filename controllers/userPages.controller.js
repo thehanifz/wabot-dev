@@ -2,10 +2,11 @@
 const { WhatsAppAccount, OutgoingMessage, Message, User } = require('../models');
 const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
+const crypto = require('crypto');
 const logger = require('../config/logger');
 const PAGE_SIZE = 20;
 
-// ─── GET /users/devices ───────────────────────────────────────────────────────────────────────────
+// ─── GET /users/devices ───────────────────────────────────────────────────────
 exports.getDevices = async (req, res, next) => {
   try {
     const devices = await WhatsAppAccount.findAll({
@@ -25,7 +26,71 @@ exports.getDevices = async (req, res, next) => {
   }
 };
 
-// ─── GET /users/messages ──────────────────────────────────────────────────────────────────────────
+// ─── GET /users/devices/new ───────────────────────────────────────────────────
+exports.getDevicesNew = async (req, res, next) => {
+  try {
+    // Cek apakah user sudah melebihi batas device (jika ada limit)
+    const deviceCount = await WhatsAppAccount.count({
+      where: { userId: req.user.id }
+    });
+    const sessionLimit = req.user.sessionLimit || 1;
+
+    res.render('user-devices-new', {
+      title: 'Add Device',
+      user: req.user,
+      deviceCount,
+      sessionLimit,
+      csrfToken: req.csrfToken(),
+      messages: req.flash()
+    });
+  } catch (err) {
+    logger.error('[userPages.getDevicesNew]', err);
+    next(err);
+  }
+};
+
+// ─── POST /users/devices ──────────────────────────────────────────────────────
+exports.createDevice = async (req, res, next) => {
+  try {
+    const { name } = req.body;
+
+    if (!name || !name.trim()) {
+      req.flash('error_msg', 'Nama device wajib diisi.');
+      return res.redirect('/users/devices/new');
+    }
+
+    // Cek limit device user
+    const deviceCount = await WhatsAppAccount.count({
+      where: { userId: req.user.id }
+    });
+    const sessionLimit = req.user.sessionLimit || 1;
+
+    if (deviceCount >= sessionLimit) {
+      req.flash('error_msg', `Anda sudah mencapai batas maksimal ${sessionLimit} device. Hubungi admin untuk menambah kuota.`);
+      return res.redirect('/users/devices/new');
+    }
+
+    // Generate sessionId unik
+    const sessionId = `${req.user.id}-${crypto.randomBytes(8).toString('hex')}`;
+
+    await WhatsAppAccount.create({
+      userId: req.user.id,
+      name:   name.trim(),
+      sessionId,
+      status: 'disconnected',
+      allowMedia: false,
+    });
+
+    req.flash('success_msg', `Device "${name.trim()}" berhasil ditambahkan. Silakan connect untuk mulai menggunakan.`);
+    return res.redirect('/users/devices');
+  } catch (err) {
+    logger.error('[userPages.createDevice]', err);
+    req.flash('error_msg', 'Terjadi kesalahan saat menambahkan device.');
+    return res.redirect('/users/devices/new');
+  }
+};
+
+// ─── GET /users/messages ──────────────────────────────────────────────────────
 exports.getMessages = async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(req.query.page) || 1);
@@ -67,7 +132,7 @@ exports.getMessages = async (req, res, next) => {
   }
 };
 
-// ─── GET /users/activity ──────────────────────────────────────────────────────────────────────────
+// ─── GET /users/activity ──────────────────────────────────────────────────────
 exports.getActivity = async (req, res, next) => {
   try {
     const userAccounts = await WhatsAppAccount.findAll({
@@ -108,7 +173,7 @@ exports.getActivity = async (req, res, next) => {
   }
 };
 
-// ─── GET /users/profile ───────────────────────────────────────────────────────────────────────────
+// ─── GET /users/profile ───────────────────────────────────────────────────────
 exports.getProfile = async (req, res, next) => {
   try {
     const userData = await User.findByPk(req.user.id);
@@ -125,7 +190,7 @@ exports.getProfile = async (req, res, next) => {
   }
 };
 
-// ─── POST /users/profile ──────────────────────────────────────────────────────────────────────────
+// ─── POST /users/profile ──────────────────────────────────────────────────────
 exports.updateProfile = async (req, res, next) => {
   try {
     const { name, email, currentPassword, newPassword, confirmPassword } = req.body;

@@ -56,18 +56,19 @@ app.use(helmet.contentSecurityPolicy({
         // Script: self + CDN yang dipakai UI
         'script-src': [
             "'self'",
-            "'unsafe-inline'",          // Diperlukan oleh Tailwind CDN (inline config)
+            "'unsafe-inline'",                              // Diperlukan oleh Tailwind CDN (inline config)
             "https://cdn.tailwindcss.com",
-            "https://cdn.jsdelivr.net", // Alpine.js
-            "https://unpkg.com",        // Lucide Icons
+            "https://cdn.jsdelivr.net",                    // Alpine.js
+            "https://unpkg.com",                           // Lucide Icons
             "https://cdnjs.cloudflare.com",
+            "https://static.cloudflareinsights.com",       // Cloudflare Web Analytics beacon
         ],
 
         // Style: self + CDN yang dipakai UI
         'style-src': [
             "'self'",
-            "'unsafe-inline'",          // Diperlukan oleh Tailwind CDN (inject style tag)
-            "https://cdn.jsdelivr.net", // DaisyUI
+            "'unsafe-inline'",                             // Diperlukan oleh Tailwind CDN (inject style tag)
+            "https://cdn.jsdelivr.net",                    // DaisyUI
             "https://fonts.googleapis.com",
             "https://cdnjs.cloudflare.com",
         ],
@@ -83,7 +84,13 @@ app.use(helmet.contentSecurityPolicy({
         'img-src': ["'self'", "data:", "https://*"],
 
         // WebSocket untuk Socket.IO
-        'connect-src': ["'self'", "ws:", "wss:"],
+        // Tambah cloudflareinsights untuk analytics beacon reporting
+        'connect-src': [
+            "'self'",
+            "ws:",
+            "wss:",
+            "https://cloudflareinsights.com",             // Analytics beacon POST endpoint
+        ],
     },
 }));
 
