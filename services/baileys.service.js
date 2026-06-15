@@ -98,8 +98,11 @@ class BaileysService {
 
                 if (statusCode === 515) {
                     logger.warn(`Terjadi Stream Error (515) untuk akun ${normalizedAccountId}. Mencoba menyambung kembali secara otomatis...`);
-                    setTimeout(() => {
-                        BaileysService.connect(normalizedAccountId, true);
+                    setTimeout(async () => {
+                        const acc = await WhatsAppAccount.findByPk(normalizedAccountId);
+                        if (acc) {
+                            BaileysService.connect(normalizedAccountId, true);
+                        }
                     }, 5000);
                     return;
                 }
@@ -123,8 +126,11 @@ class BaileysService {
 
                         logger.info(`Mencoba menyambungkan ulang akun ${normalizedAccountId} dalam ${delay/1000} detik... (usaha ke-${attemptCount})`);
                         
-                        setTimeout(() => {
-                            BaileysService.connect(normalizedAccountId, true);
+                        setTimeout(async () => {
+                            const acc = await WhatsAppAccount.findByPk(normalizedAccountId);
+                            if (acc) {
+                                BaileysService.connect(normalizedAccountId, true);
+                            }
                         }, delay);
                     } else {
                         logger.warn(`Koneksi untuk sesi baru ${normalizedAccountId} gagal. Menunggu tindakan pengguna.`);

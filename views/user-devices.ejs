@@ -34,10 +34,16 @@
                 <span class="w-1.5 h-1.5 rounded-full bg-current"></span>Connected
               </span>
               <% } else if (device.status === 'disconnected') { %>
-              <span class="badge badge-error badge-sm shrink-0">Disconnected</span>
+              <span class="badge badge-error badge-sm shrink-0" id="status-<%= device.id %>">Disconnected</span>
               <% } else { %>
-              <span class="badge badge-warning badge-sm shrink-0"><%= device.status %></span>
+              <span class="badge badge-warning badge-sm shrink-0" id="status-<%= device.id %>"><%= device.status %></span>
               <% } %>
+            </div>
+
+            <!-- QR Code Container -->
+            <div id="qr-container-<%= device.id %>" class="<%= device.status === 'qr-code' && device.qrCode ? '' : 'hidden ' %>mt-4 flex flex-col items-center justify-center bg-base-200 rounded-xl p-4">
+               <p class="text-xs text-base-content/70 mb-2">Scan QR Code dengan WhatsApp</p>
+               <img id="qr-img-<%= device.id %>" src="<%= device.status === 'qr-code' ? (device.qrCode || '') : '' %>" alt="QR Code" class="w-48 h-48 rounded bg-white p-2 shadow-sm">
             </div>
 
             <div class="mt-3 pt-3 border-t border-base-200 flex items-center justify-between text-xs text-base-content/50">
@@ -49,14 +55,14 @@
 
             <div class="mt-3 flex gap-2">
               <% if (device.status !== 'connected') { %>
-              <form method="POST" action="/accounts/connect/<%= device.id %>" class="flex-1">
+              <form method="POST" action="/dashboard/accounts/connect/<%= device.id %>" class="flex-1">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button class="btn btn-success btn-sm w-full gap-1">
                   <i data-lucide="plug" class="w-3.5 h-3.5"></i> Connect
                 </button>
               </form>
               <% } else { %>
-              <form method="POST" action="/accounts/disconnect/<%= device.id %>" class="flex-1">
+              <form method="POST" action="/dashboard/accounts/disconnect/<%= device.id %>" class="flex-1">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                 <button class="btn btn-outline btn-sm w-full gap-1">
                   <i data-lucide="plug-zap" class="w-3.5 h-3.5"></i> Disconnect
@@ -64,10 +70,17 @@
               </form>
               <% } %>
 
+              <button
+                type="button"
+                class="btn btn-ghost btn-sm text-base-content/70 hover:text-primary"
+                onclick="openSettings(<%= device.id %>, '<%= device.name %>')">
+                <i data-lucide="settings" class="w-4 h-4"></i>
+              </button>
+
               <form
                 id="delete-device-<%= device.id %>"
                 method="POST"
-                action="/accounts/delete/<%= device.id %>">
+                action="/dashboard/accounts/delete/<%= device.id %>">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
               </form>
 
@@ -97,6 +110,7 @@
       <% } %>
 
       <%- include('partials/core/confirm-modal') %>
+      <%- include('partials/_settings-modal') %>
     </main>
   </div>
   <div class="drawer-side z-40">
@@ -104,6 +118,77 @@
     <%- include('partials/nav/sidebar-user') %>
   </div>
 </div>
-<%- include('partials/core/scripts', { loadSocketIO: false }) %>
+<%- include('partials/core/scripts', { loadSocketIO: true }) %>
+
+<script>
+  // Script untuk Socket.IO QR Code & Status
+  document.addEventListener('DOMContentLoaded', () => {
+    if (typeof socket !== 'undefined') {
+      socket.on('qr-code', (data) => {
+        const qrContainer = document.getElementById('qr-container-' + data.accountId);
+        const qrImg = document.getElementById('qr-img-' + data.accountId);
+        const statusBadge = document.getElementById('status-' + data.accountId);
+        
+        if (qrContainer && qrImg) {
+          qrImg.src = data.qrCode;
+          qrContainer.classList.remove('hidden');
+        }
+        if (statusBadge) {
+          statusBadge.textContent = 'QR Ready';
+        }
+      });
+
+      socket.on('status-change', (data) => {
+        if (data.status === 'connected') {
+          window.location.reload();
+        }
+      });
+    }
+
+    document.getElementById('close-modal-btn')?.addEventListener('click', () => {
+      document.getElementById('settings-modal').classList.add('hidden');
+    });
+
+    document.getElementById('generate-api-key-btn')?.addEventListener('click', async () => {
+      try {
+        const res = await fetch('/dashboard/generate-api-key');
+        if (res.ok) {
+          const data = await res.json();
+          document.getElementById('apiKey').value = data.apiKey;
+        }
+      } catch (err) {
+        console.error('Failed to generate API Key:', err);
+      }
+    });
+  });
+
+  // Modal logic untuk _settings-modal.ejs diletakkan di luar DOMContentLoaded
+  // agar attribute onclick="" di HTML dapat langsung memanggilnya.
+  window.openSettings = async function(accountId, accountName) {
+    const settingsModal = document.getElementById('settings-modal');
+    const settingsForm = document.getElementById('settings-form');
+    const webhookUrlInput = document.getElementById('webhookUrl');
+    const apiKeyInput = document.getElementById('apiKey');
+    const maxFileSizeInput = document.getElementById('maxFileSize');
+    const mediaContainer = document.getElementById('media-settings-container');
+
+    document.getElementById('modal-account-name').textContent = accountName;
+    settingsForm.action = '/dashboard/accounts/settings/' + accountId;
+    settingsModal.classList.remove('hidden');
+
+    try {
+      const res = await fetch('/dashboard/accounts/' + accountId + '/settings');
+      if (res.ok) {
+        const data = await res.json();
+        webhookUrlInput.value = data.webhookUrl || '';
+        apiKeyInput.value = data.apiKey || '';
+        mediaContainer.style.display = data.allowMedia ? 'block' : 'none';
+        if (maxFileSizeInput) maxFileSizeInput.value = data.maxFileSize || '';
+      }
+    } catch (err) {
+      console.error('Failed to load settings:', err);
+    }
+  };
+</script>
 </body>
 </html>

@@ -55,9 +55,12 @@
 
   <!-- Footer sidebar -->
   <li class="mt-auto pt-4">
-    <a href="/auth/logout" class="gap-3 rounded-xl text-error hover:bg-error/10">
-      <i data-lucide="log-out" class="w-4 h-4"></i>
-      Logout
-    </a>
+    <form action="/auth/logout" method="POST" class="p-0">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+      <button type="submit" class="w-full flex gap-3 rounded-xl text-error hover:bg-error/10 text-left">
+        <i data-lucide="log-out" class="w-4 h-4"></i>
+        Logout
+      </button>
+    </form>
   </li>
 </ul>

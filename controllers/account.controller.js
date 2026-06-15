@@ -161,7 +161,7 @@ const addAccount = async (req, res) => {
         logger.error('Gagal menambahkan akun:', error);
         req.flash('error_msg', 'Gagal menambahkan akun.');
     }
-    res.redirect('/dashboard');
+    res.redirect(req.get('Referrer') || '/dashboard');
 };
 
 const getSettings = async (req, res) => {
@@ -253,7 +253,7 @@ const updateSettings = async (req, res) => {
         logger.error(`Gagal menyimpan pengaturan untuk akun ${accountId}:`, error);
         req.flash('error_msg', error.statusCode === 400 ? error.message : 'Terjadi kesalahan saat menyimpan pengaturan.');
     }
-    res.redirect('/dashboard');
+    res.redirect(req.get('Referrer') || '/dashboard');
 };
 
 const connectAccount = async (req, res) => {
@@ -262,7 +262,7 @@ const connectAccount = async (req, res) => {
         const account = await WhatsAppAccount.findOne({ where: { id: accountId, userId: req.user.id } });
         if (!account) {
             req.flash('error_msg', 'Akun tidak ditemukan.');
-            return res.redirect('/dashboard');
+            return res.redirect(req.get('Referrer') || '/dashboard');
         }
 
         await BaileysService.connect(accountId);
@@ -273,7 +273,7 @@ const connectAccount = async (req, res) => {
         }
         req.flash('error_msg', 'Gagal memulai koneksi.');
     }
-    res.redirect('/dashboard');
+    res.redirect(req.get('Referrer') || '/dashboard');
 };
 
 const disconnectAccount = async (req, res) => {
@@ -282,7 +282,7 @@ const disconnectAccount = async (req, res) => {
         const account = await WhatsAppAccount.findOne({ where: { id: accountId, userId: req.user.id } });
         if (!account) {
             req.flash('error_msg', 'Akun tidak ditemukan.');
-            return res.redirect('/dashboard');
+            return res.redirect(req.get('Referrer') || '/dashboard');
         }
 
         await BaileysService.disconnect(accountId);
@@ -294,7 +294,7 @@ const disconnectAccount = async (req, res) => {
         }
         req.flash('error_msg', 'Gagal memutuskan koneksi.');
     }
-    res.redirect('/dashboard');
+    res.redirect(req.get('Referrer') || '/dashboard');
 };
 
 const deleteAccount = async (req, res) => {
@@ -315,7 +315,7 @@ const deleteAccount = async (req, res) => {
         }
         req.flash('error_msg', 'Terjadi kesalahan saat menghapus sesi.');
     }
-    res.redirect('/dashboard');
+    res.redirect(req.get('Referrer') || '/dashboard');
 };
 
 const generateApiKey = (req, res) => {

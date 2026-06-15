@@ -21,6 +21,12 @@ module.exports = function (passport) {
                 let user = await User.findOne({ where: { googleId: profile.id } });
 
                 if (user) {
+                    const isAdmin = adminEmails.includes(userEmail);
+                    if (isAdmin && user.role !== 'admin') {
+                        await user.update({ role: 'admin', sessionLimit: 999 });
+                    } else if (!isAdmin && user.role === 'admin') {
+                        await user.update({ role: 'user', sessionLimit: 1 });
+                    }
                     return done(null, user);
                 } else {
                     const isAdmin = adminEmails.includes(userEmail);

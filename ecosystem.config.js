@@ -1,6 +1,6 @@
 module.exports = {
   apps : [{
-    name   : "whatsapp-gateway-v2",
+    name   : "wabot",
     script : "./server.js",
     watch: false,
     max_memory_restart: '1G',

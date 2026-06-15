@@ -62,9 +62,12 @@
         </li>
         <div class="divider my-0.5"></div>
         <li>
-          <a href="/auth/logout" class="gap-2 text-error">
-            <i data-lucide="log-out" class="w-4 h-4"></i> Logout
-          </a>
+          <form action="/auth/logout" method="POST" class="p-0">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="w-full flex gap-2 text-error text-left px-4 py-2">
+              <i data-lucide="log-out" class="w-4 h-4"></i> Logout
+            </button>
+          </form>
         </li>
       </ul>
     </div>

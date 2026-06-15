@@ -57,6 +57,7 @@ app.use(helmet.contentSecurityPolicy({
         'script-src': [
             "'self'",
             "'unsafe-inline'",                              // Diperlukan oleh Tailwind CDN (inline config)
+            "'unsafe-eval'",                                // Diperlukan oleh Alpine.js v3
             "https://cdn.tailwindcss.com",
             "https://cdn.jsdelivr.net",                    // Alpine.js
             "https://unpkg.com",                           // Lucide Icons
@@ -114,6 +115,16 @@ app.use(sessionMiddleware);
 const socketConnectionAttempts = new Map();
 const SOCKET_WINDOW_MS = 60 * 1000;
 const SOCKET_MAX_ATTEMPTS = 30;
+
+// H-04 FIX: Membersihkan IP lama secara berkala untuk menghindari memory leak
+setInterval(() => {
+    const currentTime = Date.now();
+    for (const [ip, attempts] of socketConnectionAttempts.entries()) {
+        const fresh = attempts.filter(t => currentTime - t < SOCKET_WINDOW_MS);
+        if (fresh.length === 0) socketConnectionAttempts.delete(ip);
+        else socketConnectionAttempts.set(ip, fresh);
+    }
+}, 5 * 60 * 1000);
 
 io.use((socket, next) => {
     const forwardedFor = socket.handshake.headers['x-forwarded-for'];
@@ -286,5 +297,5 @@ waitForDatabaseReady(sequelize).then(() => sequelize.sync({ alter: true })).then
     });
 
 }).catch(err => {
-    logger.error('❌ Gagal sinkronisasi database:', err);
+    logger.error(err, '❌ Gagal sinkronisasi database:');
 });
