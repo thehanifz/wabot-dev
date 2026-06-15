@@ -53,6 +53,17 @@
     </a>
   </li>
 
+  <% if (user && user.role === 'admin') { %>
+  <div class="divider my-1"></div>
+  <li class="menu-title text-xs uppercase tracking-wider text-warning/70 px-4 mb-1">Admin</li>
+  <li>
+    <a href="/admin" class="gap-3 rounded-xl text-warning hover:bg-warning/10 font-medium">
+      <i data-lucide="shield-check" class="w-4 h-4"></i>
+      Admin Panel
+    </a>
+  </li>
+  <% } %>
+
   <!-- Footer sidebar -->
   <li class="mt-auto pt-4">
     <form action="/auth/logout" method="POST" class="p-0">

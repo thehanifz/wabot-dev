@@ -49,6 +49,14 @@
           <span class="font-medium text-base-content text-sm"><%= user ? (user.name || user.email) : '' %></span>
           <span class="text-xs text-base-content/50"><%= user ? user.email : '' %></span>
         </li>
+        <% if (user && user.role === 'admin') { %>
+        <div class="divider my-0.5"></div>
+        <li>
+          <a href="/admin" class="gap-2 text-warning font-medium">
+            <i data-lucide="shield-check" class="w-4 h-4"></i> Admin Panel
+          </a>
+        </li>
+        <% } %>
         <div class="divider my-0.5"></div>
         <li>
           <a href="/users/profile" class="gap-2">
@@ -56,8 +64,8 @@
           </a>
         </li>
         <li>
-          <a href="/users/profile" class="gap-2">
-            <i data-lucide="settings" class="w-4 h-4"></i> Pengaturan
+          <a href="/users/devices" class="gap-2">
+            <i data-lucide="settings" class="w-4 h-4"></i> Pengaturan Device
           </a>
         </li>
         <div class="divider my-0.5"></div>

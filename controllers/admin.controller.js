@@ -102,7 +102,10 @@ const getAdminDashboardPage = async (req, res) => {
             failedJobs,
             systemUptime,
             recentUsers,
-            auditLogs
+            auditLogs,
+            csrfToken: req.csrfToken(),
+            success_msg: req.flash('success_msg'),
+            error_msg: req.flash('error_msg'),
         });
     } catch (error) {
         logger.error('Gagal memuat halaman admin panel:', error);

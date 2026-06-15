@@ -87,12 +87,9 @@
               <button
                 type="button"
                 class="btn btn-ghost btn-sm text-error"
-                @click="$dispatch('open-confirm-modal', {
-                  title: 'Hapus Device',
-                  message: 'Yakin ingin menghapus perangkat &quot;<%= device.name %>&quot;? Semua data terkait akan ikut terhapus.',
-                  confirmLabel: 'Ya, Hapus',
-                  formId: 'delete-device-<%= device.id %>'
-                })">
+                data-form-id="delete-device-<%= device.id %>"
+                data-device-name="<%= device.name %>"
+                onclick="openDeleteConfirm(this)">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
               </button>
             </div>
@@ -121,6 +118,20 @@
 <%- include('partials/core/scripts', { loadSocketIO: true }) %>
 
 <script>
+  // ─── openDeleteConfirm — baca data attribute agar aman dari escaping issues
+  window.openDeleteConfirm = function(btn) {
+    const formId = btn.dataset.formId;
+    const deviceName = btn.dataset.deviceName;
+    window.dispatchEvent(new CustomEvent('open-confirm-modal', {
+      detail: {
+        title: 'Hapus Device',
+        message: 'Yakin ingin menghapus perangkat "' + deviceName + '"? Semua data terkait akan ikut terhapus.',
+        confirmLabel: 'Ya, Hapus',
+        formId: formId
+      }
+    }));
+  };
+
   // Script untuk Socket.IO QR Code & Status
   document.addEventListener('DOMContentLoaded', () => {
     if (typeof socket !== 'undefined') {
