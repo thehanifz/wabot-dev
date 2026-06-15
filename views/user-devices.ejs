@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="id" data-theme="wabot">
 <head><%- include('partials/core/head', { title: 'My Devices' }) %></head>
-<body class="bg-base-200 min-h-screen">
+<body class="bg-base-200 min-h-screen" x-data>
 <div class="drawer lg:drawer-open">
   <input id="app-drawer" type="checkbox" class="drawer-toggle" />
   <div class="drawer-content flex flex-col min-h-screen">
@@ -73,7 +73,7 @@
               <button
                 type="button"
                 class="btn btn-ghost btn-sm text-base-content/70 hover:text-primary"
-                onclick="openSettings(<%= device.id %>, '<%= device.name %>')">
+                @click="openSettings(<%= device.id %>, '<%= device.name %>')">
                 <i data-lucide="settings" class="w-4 h-4"></i>
               </button>
 
@@ -89,7 +89,7 @@
                 class="btn btn-ghost btn-sm text-error"
                 data-form-id="delete-device-<%= device.id %>"
                 data-device-name="<%= device.name %>"
-                onclick="openDeleteConfirm(this)">
+                @click="openDeleteConfirm($el)">
                 <i data-lucide="trash-2" class="w-4 h-4"></i>
               </button>
             </div>
@@ -250,12 +250,14 @@
         const mimeList = await mimeRes.json();
         if (Array.isArray(mimeList) && mimeList.length > 0) {
           mimeTypeOptionsEl.innerHTML = mimeList.map(mime => {
-            const isChecked = currentAllowedTypes.includes(mime);
-            const safeId = mime.replace(/[^a-z0-9]/gi, '-');
+            const val = typeof mime === 'string' ? mime : mime.value;
+            const lbl = typeof mime === 'string' ? mime : (mime.label || mime.value);
+            const isChecked = currentAllowedTypes.includes(val);
+            const safeId = val.replace(/[^a-z0-9]/gi, '-');
             return `<label class="flex items-center gap-2 cursor-pointer">
               <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
-                     id="mime-${safeId}" value="${mime}" ${isChecked ? 'checked' : ''}>
-              <span class="text-xs font-mono">${mime}</span>
+                     id="mime-${safeId}" value="${val}" ${isChecked ? 'checked' : ''}>
+              <span class="text-xs font-mono">${lbl}</span>
             </label>`;
           }).join('');
         } else {
