@@ -108,6 +108,20 @@ router.get('/media/temp/:filename', async (req, res) => {
             return res.status(401).json({ error: 'Akses ditolak. API Key tidak valid.' });
         }
 
+        // BUG-13 FIX: Verifikasi kepemilikan file — pastikan file ini terkait dengan akun yang meminta
+        const { Message } = require('../models');
+        const ownerCheck = await Message.findOne({
+            where: {
+                accountId: account.id,
+                mediaUrl: { [require('sequelize').Op.like]: `%${filename}` },
+            },
+        });
+
+        if (!ownerCheck) {
+            logger.warn(`[SECURITY] Unauthorized temp file access: ${filename} oleh accountId ${account.id}`);
+            return res.status(403).json({ error: 'Akses ditolak. File ini bukan milik akun Anda.' });
+        }
+
         // Serve file
         const tempDir = path.resolve(__dirname, '..', 'temp');
         const filePath = path.resolve(tempDir, filename);

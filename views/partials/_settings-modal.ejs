@@ -1,48 +1,96 @@
-<div id="settings-modal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
-    <div class="relative top-20 mx-auto p-5 border w-full max-w-lg shadow-lg rounded-md bg-white">
-        <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-medium text-gray-900">Pengaturan Akun: <span id="modal-account-name" class="font-bold"></span></h3>
-            <button id="close-modal-btn" class="text-gray-400 hover:text-gray-500">
-                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-            </button>
+<%# partials/_settings-modal.ejs — Modal pengaturan akun (DaisyUI dialog) %>
+<%# Cara pakai: window.openSettings(accountId, accountName) %>
+
+<dialog id="settings-modal" class="modal">
+  <div class="modal-box w-full max-w-lg">
+    <button
+      type="button"
+      class="btn btn-sm btn-circle btn-ghost absolute right-3 top-3"
+      id="close-modal-btn">✕</button>
+
+    <h3 class="font-bold text-lg mb-1">Pengaturan Akun</h3>
+    <p class="text-sm text-base-content/50 mb-5">
+      <span id="modal-account-name" class="font-medium text-base-content"></span>
+    </p>
+
+    <form id="settings-form" method="POST" class="space-y-5">
+      <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+
+      <%# Webhook URL %>
+      <div class="form-control">
+        <label class="label pb-1">
+          <span class="label-text font-medium">Webhook URL</span>
+        </label>
+        <input
+          type="url"
+          id="webhookUrl"
+          name="webhookUrl"
+          placeholder="https://n8n.example.com/webhook/..."
+          class="input input-bordered w-full" />
+        <label class="label pt-1">
+          <span class="label-text-alt text-base-content/40">URL untuk meneruskan pesan masuk ke n8n, Make, dll.</span>
+        </label>
+      </div>
+
+      <%# API Key %>
+      <div class="form-control">
+        <label class="label pb-1">
+          <span class="label-text font-medium">API Key</span>
+        </label>
+        <div class="join w-full">
+          <input
+            type="text"
+            id="apiKey"
+            name="apiKey"
+            placeholder="APIKEY_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+            class="input input-bordered join-item flex-1 font-mono text-sm" />
+          <button
+            type="button"
+            id="generate-api-key-btn"
+            class="btn btn-outline join-item">
+            Generate
+          </button>
         </div>
-        
-        <form id="settings-form" method="POST">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            
-            <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="webhookUrl">Webhook URL</label>
-                <input type="url" id="webhookUrl" name="webhookUrl" placeholder="https://n8n.example.com/webhook/..." class="shadow appearance-none border rounded w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                <p class="text-xs text-gray-500 mt-1">URL untuk meneruskan pesan masuk (n8n, Make, dll).</p>
-            </div>
+        <label class="label pt-1">
+          <span class="label-text-alt text-base-content/40">Kunci untuk autentikasi request API dari sistem eksternal.</span>
+        </label>
+      </div>
 
-            <div class="mb-4">
-                <label class="block text-gray-700 text-sm font-bold mb-2" for="apiKey">API Key (Security)</label>
-                <div class="flex">
-                    <input type="text" id="apiKey" name="apiKey" placeholder="Optional security key" class="shadow appearance-none border rounded-l w-full py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">
-                    <button type="button" id="generate-api-key-btn" class="bg-gray-200 hover:bg-gray-300 text-gray-700 font-bold py-2 px-4 rounded-r">Generate</button>
-                </div>
-            </div>
+      <%# Media settings — hanya tampil jika allowMedia aktif %>
+      <div id="media-settings-container" class="space-y-4 hidden">
+        <div class="divider text-xs text-base-content/40">Pengaturan Media</div>
 
-            <div id="media-settings-container" class="mb-4 border-t pt-4">
-                <h4 class="text-sm font-semibold text-gray-600 mb-2">Pengaturan Media</h4>
-                <div class="mb-2">
-                     <label class="block text-gray-700 text-xs font-bold mb-1">Max Upload Size (MB)</label>
-                     <input type="number" id="maxFileSize" name="maxFileSize" class="shadow border rounded w-20 py-1 px-2 text-sm">
-                </div>
-                <div class="mb-2">
-                    <label class="block text-gray-700 text-xs font-bold mb-1">Allowed Types</label>
-                    <div id="mimeTypeOptions" class="grid grid-cols-2 gap-2 text-xs">
-                        </div>
-                    <input type="hidden" name="allowedMimeTypes" id="allowedMimeTypes">
-                </div>
-            </div>
+        <div class="form-control">
+          <label class="label pb-1">
+            <span class="label-text font-medium">Max Upload Size (MB)</span>
+          </label>
+          <input
+            type="number"
+            id="maxFileSize"
+            name="maxFileSize"
+            min="1"
+            max="100"
+            class="input input-bordered w-32" />
+        </div>
 
-            <div class="flex justify-end pt-4 border-t">
-                <button type="submit" class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline">
-                    Simpan Pengaturan
-                </button>
-            </div>
-        </form>
-    </div>
-</div>
+        <div class="form-control">
+          <label class="label pb-1">
+            <span class="label-text font-medium">Tipe File Diizinkan</span>
+          </label>
+          <div id="mimeTypeOptions" class="grid grid-cols-2 gap-2 text-sm">
+            <span class="text-base-content/40 text-xs">Memuat daftar tipe file...</span>
+          </div>
+          <input type="hidden" name="allowedMimeTypes" id="allowedMimeTypes">
+        </div>
+      </div>
+
+      <div class="modal-action mt-6 pt-4 border-t border-base-300">
+        <button type="button" class="btn btn-ghost" id="cancel-modal-btn">Batal</button>
+        <button type="submit" class="btn btn-primary">Simpan Pengaturan</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop">
+    <button>close</button>
+  </form>
+</dialog>

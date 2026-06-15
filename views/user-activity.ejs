@@ -33,7 +33,8 @@
                   <span class="text-sm text-base-content/80 truncate">
                     ke <span class="font-mono"><%= item.data.recipient %></span>
                     <% const p = item.data.payload || {}; %>
-                    <% if (p.message) { %> — "<%= String(p.message).substring(0, 40) %><%= p.message.length > 40 ? '…' : '' %>"<% } %>
+                    <% const previewText = p.text || p.message; %>
+                    <% if (previewText) { %> — "<%= String(previewText).substring(0, 40) %><%= previewText.length > 40 ? '…' : '' %>"<% } else if (p.media) { %> [Media]<% } %>
                   </span>
                   <% } else { %>
                   <span class="badge badge-info badge-xs">Incoming</span>

@@ -45,11 +45,11 @@
               <tbody>
                 <% outgoingMessages.forEach(msg => { %>
                 <% const payload = msg.payload || {}; %>
-                <% const preview = payload.message ? String(payload.message).substring(0, 60) : (payload.type || '—'); %>
+                <% const preview = payload.text || payload.message || (payload.media ? '[Media]' : '—'); %>
                 <tr class="hover:bg-base-50">
                   <td class="font-mono text-xs text-base-content/80"><%= msg.recipient %></td>
                   <td class="text-sm max-w-xs">
-                    <span class="truncate block" title="<%= preview %>"><%= preview %><%= String(payload.message || '').length > 60 ? '…' : '' %></span>
+                    <span class="truncate block" title="<%= preview %>"><%= String(preview).substring(0, 60) %><%= String(payload.text || payload.message || '').length > 60 ? '…' : '' %></span>
                   </td>
                   <td class="text-xs text-base-content/60">
                     <%= msg.WhatsAppAccount ? msg.WhatsAppAccount.name : '—' %>

@@ -18,6 +18,9 @@ const getUserManagementPage = async (req, res) => {
         res.render('user-management', {
             user: req.user,
             users: users,
+            csrfToken: req.csrfToken(),
+            success_msg: req.flash('success_msg'),
+            error_msg: req.flash('error_msg'),
         });
     } catch (error) {
         logger.error('Error getting user management page:', error);

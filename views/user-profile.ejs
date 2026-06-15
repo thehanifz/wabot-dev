@@ -10,10 +10,10 @@
       <%- include('partials/core/flash-alert') %>
       <%- include('partials/core/page-header', {
         pageTitle: 'Profile',
-        pageSubtitle: 'Kelola informasi akun Anda.'
+        pageSubtitle: 'Informasi akun Google Anda.'
       }) %>
 
-      <!-- Info card -->
+      <%# Info card — data dari Google, read-only %>
       <div class="card bg-base-100 border border-base-300/70 shadow-sm mb-5">
         <div class="card-body p-5">
           <div class="flex items-center gap-4">
@@ -40,75 +40,52 @@
         </div>
       </div>
 
-      <!-- Edit form -->
-      <div class="card bg-base-100 border border-base-300/70 shadow-sm mb-5">
-        <div class="card-body p-5">
-          <h3 class="font-semibold text-base-content mb-4">Edit Informasi</h3>
-          <form method="POST" action="/users/profile" class="space-y-4">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <div class="form-control">
-              <label class="label pb-1"><span class="label-text text-sm font-medium">Nama</span></label>
-              <input type="text" name="name" class="input input-bordered"
-                     value="<%= userData.name || '' %>" placeholder="Nama Anda" />
-            </div>
-            <div class="form-control">
-              <label class="label pb-1"><span class="label-text text-sm font-medium">Email</span></label>
-              <input type="email" name="email" class="input input-bordered"
-                     value="<%= userData.email %>" placeholder="email@domain.com" />
-            </div>
-            <div class="form-control">
-              <label class="label pb-1"><span class="label-text text-sm font-medium">Role</span></label>
-              <input type="text" class="input input-bordered input-disabled" value="<%= userData.role %>" disabled />
-              <p class="text-xs text-base-content/40 mt-1">Role tidak dapat diubah sendiri.</p>
-            </div>
-            <button type="submit" class="btn btn-primary">Simpan Perubahan</button>
-          </form>
+      <%# Google account notice %>
+      <div class="alert alert-info shadow-sm mb-5">
+        <i data-lucide="info" class="w-5 h-5 shrink-0"></i>
+        <div>
+          <p class="font-medium text-sm">Akun terhubung via Google</p>
+          <p class="text-xs opacity-80 mt-0.5">
+            Nama, email, dan kata sandi dikelola langsung oleh Google.
+            Untuk mengubah informasi tersebut, kunjungi
+            <a href="https://myaccount.google.com" target="_blank" rel="noopener noreferrer"
+               class="underline font-medium">myaccount.google.com</a>.
+          </p>
         </div>
       </div>
 
-      <!-- Change password -->
+      <%# Stats card %>
       <div class="card bg-base-100 border border-base-300/70 shadow-sm">
         <div class="card-body p-5">
-          <h3 class="font-semibold text-base-content mb-1">Ganti Password</h3>
-          <p class="text-xs text-base-content/50 mb-4">Kosongkan jika tidak ingin mengganti password.</p>
-          <form method="POST" action="/users/profile" class="space-y-4"
-                x-data="{ showPw: false }">
-            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-            <!-- Kirim nama & email juga supaya tidak ter-reset -->
-            <input type="hidden" name="name" value="<%= userData.name || '' %>">
-            <input type="hidden" name="email" value="<%= userData.email %>">
-
-            <div class="form-control" x-data="{ show: false }">
-              <label class="label pb-1"><span class="label-text text-sm font-medium">Password Saat Ini</span></label>
-              <div class="relative">
-                <input :type="show ? 'text' : 'password'" name="currentPassword"
-                       class="input input-bordered w-full pr-10" placeholder="••••••••" />
-                <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content"
-                        @click="show = !show">
-                  <template x-if="show"><i data-lucide="eye-off" class="w-4 h-4"></i></template>
-                  <template x-if="!show"><i data-lucide="eye" class="w-4 h-4"></i></template>
-                </button>
-              </div>
+          <h3 class="font-semibold text-base-content mb-4">Informasi Akun</h3>
+          <dl class="space-y-3">
+            <div class="flex items-center justify-between py-2 border-b border-base-200">
+              <dt class="text-sm text-base-content/50">Nama</dt>
+              <dd class="text-sm font-medium text-base-content"><%= userData.name || '—' %></dd>
             </div>
-            <div class="form-control" x-data="{ show: false }">
-              <label class="label pb-1"><span class="label-text text-sm font-medium">Password Baru</span></label>
-              <div class="relative">
-                <input :type="show ? 'text' : 'password'" name="newPassword"
-                       class="input input-bordered w-full pr-10" placeholder="Min. 8 karakter" />
-                <button type="button" class="absolute right-3 top-1/2 -translate-y-1/2 text-base-content/40 hover:text-base-content"
-                        @click="show = !show">
-                  <template x-if="show"><i data-lucide="eye-off" class="w-4 h-4"></i></template>
-                  <template x-if="!show"><i data-lucide="eye" class="w-4 h-4"></i></template>
-                </button>
-              </div>
+            <div class="flex items-center justify-between py-2 border-b border-base-200">
+              <dt class="text-sm text-base-content/50">Email</dt>
+              <dd class="text-sm font-medium text-base-content"><%= userData.email %></dd>
             </div>
-            <div class="form-control">
-              <label class="label pb-1"><span class="label-text text-sm font-medium">Konfirmasi Password Baru</span></label>
-              <input type="password" name="confirmPassword" class="input input-bordered"
-                     placeholder="Ulangi password baru" />
+            <div class="flex items-center justify-between py-2 border-b border-base-200">
+              <dt class="text-sm text-base-content/50">Role</dt>
+              <dd>
+                <span class="badge badge-sm <%= userData.role === 'admin' ? 'badge-primary' : 'badge-ghost' %>">
+                  <%= userData.role %>
+                </span>
+              </dd>
             </div>
-            <button type="submit" class="btn btn-outline">Ganti Password</button>
-          </form>
+            <div class="flex items-center justify-between py-2 border-b border-base-200">
+              <dt class="text-sm text-base-content/50">Batas Device</dt>
+              <dd class="text-sm font-medium text-base-content"><%= userData.sessionLimit %></dd>
+            </div>
+            <div class="flex items-center justify-between py-2">
+              <dt class="text-sm text-base-content/50">Bergabung</dt>
+              <dd class="text-sm text-base-content/70">
+                <%= new Date(userData.createdAt).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' }) %>
+              </dd>
+            </div>
+          </dl>
         </div>
       </div>
     </main>

@@ -3,12 +3,14 @@ const router = express.Router();
 const passport = require('passport');
 const authController = require('../controllers/auth.controller');
 const { ensureGuest, ensureAuthenticated } = require('../middleware/auth.middleware');
-const { authLimiter } = require('../middleware/rateLimiter.middleware');
+const { authLimiter, loginPageLimiter } = require('../middleware/rateLimiter.middleware');
 
-router.use(authLimiter);
+// BUG-9 FIX: Terapkan rate limit granular per endpoint
+// - Halaman statis & redirect OAuth: loginPageLimiter (longgar, 120/15min)
+// - Callback OAuth sensitif: authLimiter (ketat, 10/15min)
 
 // Login Page (Google OAuth only)
-router.get('/login', ensureGuest, authController.getLoginPage);
+router.get('/login', loginPageLimiter, ensureGuest, authController.getLoginPage);
 
 // Logout
 router.post('/logout', ensureAuthenticated, authController.logout);
@@ -20,11 +22,12 @@ router.get('/terms', authController.getPublicTermsPage);
 router.get('/terms/onboarding', ensureAuthenticated, authController.getOnboardingTermsPage);
 router.post('/terms/accept', ensureAuthenticated, authController.acceptTerms);
 
-// Google OAuth
-router.get('/google', passport.authenticate('google', { scope: ['profile', 'email'] }));
+// Google OAuth — redirect ke Google (longgar)
+router.get('/google', loginPageLimiter, passport.authenticate('google', { scope: ['profile', 'email'] }));
 
 router.get(
     '/google/callback',
+    authLimiter, // Ketat: ini endpoint sensitif yang dieksploitasi brute force
     passport.authenticate('google', { failureRedirect: '/auth/login', failureFlash: true }),
     (req, res, next) => {
         const authenticatedUser = req.user;

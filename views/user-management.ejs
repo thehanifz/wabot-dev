@@ -81,9 +81,7 @@
                       </span>
                     </td>
                     <td>
-                      <span class="badge badge-sm <%= u.isActive ? 'badge-success' : 'badge-error' %>">
-                        <%= u.isActive ? 'Active' : 'Suspended' %>
-                      </span>
+                      <span class="badge badge-sm badge-success">Active</span>
                     </td>
                     <td class="text-xs text-base-content/50">
                       <%= u.createdAt ? new Date(u.createdAt).toLocaleDateString('id-ID') : '\u2014' %>

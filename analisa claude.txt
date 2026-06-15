@@ -1,0 +1,142 @@
+Saya akan review kode ini secara menyeluruh. Berikut temuan bug dan potensi masalah yang saya identifikasi:
+
+🔴 Bug Kritis
+1. dashboard.ejs — KPI Cards menerima variabel yang tidak dikirim controller
+partials/dashboard-user/kpi-cards.ejs menggunakan sessions, totalMessages, failedMessages, uptime, tapi dashboard.controller.js hanya mengirim accounts (bukan sessions), dan tidak mengirim tiga variabel lainnya sama sekali.
+Fix di controllers/dashboard.controller.js:
+javascript// Tambahkan query ini sebelum res.render()
+const { OutgoingMessage } = require('../models');
+const { Op } = require('sequelize');
+
+const todayStart = new Date();
+todayStart.setHours(0, 0, 0, 0);
+
+const totalMessages = await OutgoingMessage.count({
+  where: { accountId: { [Op.in]: safeAccounts.map(a => a.id) }, status: 'sent', createdAt: { [Op.gte]: todayStart } }
+});
+const failedMessages = await OutgoingMessage.count({
+  where: { accountId: { [Op.in]: safeAccounts.map(a => a.id) }, status: 'failed', createdAt: { [Op.gte]: todayStart } }
+});
+const uptimeSec = process.uptime();
+const uptime = `${Math.floor(uptimeSec / 3600)}j ${Math.floor((uptimeSec % 3600) / 60)}m`;
+
+res.render('dashboard', {
+  // ...existing vars...
+  sessions: safeAccounts, // kpi-cards.ejs pakai 'sessions', bukan 'accounts'
+  totalMessages,
+  failedMessages,
+  uptime,
+});
+
+2. partials/dashboard-user/device-table.ejs — Variabel salah nama
+Partial ini menggunakan sessions tapi dashboard.ejs include partial ini dalam context yang sama dengan KPI cards — namun dashboard.controller.js mengirim accounts, bukan sessions. Harus konsisten dengan fix di atas.
+
+3. user-activity.ejs — Akses item.data.payload yang tidak ada
+ejs<% const p = item.data.payload || {}; %>
+<% if (p.message) { %> — "<%= String(p.message).substring(0, 40) %>"<% } %>
+OutgoingMessage menggunakan field payload.text, bukan payload.message. Akibatnya preview pesan selalu kosong.
+Fix:
+ejs<% const p = item.data.payload || {}; %>
+<% const previewText = p.text || p.message; %>
+<% if (previewText) { %> — "<%= String(previewText).substring(0, 40) %><%= previewText.length > 40 ? '…' : '' %>"<% } %>
+
+4. user-messages.ejs — Preview pesan juga pakai payload.message
+ejs<% const preview = payload.message ? String(payload.message).substring(0, 60) : (payload.type || '—'); %>
+Sama seperti di atas, field yang benar adalah payload.text.
+Fix:
+ejs<% const preview = payload.text || payload.message
+   ? String(payload.text || payload.message).substring(0, 60)
+   : (payload.media ? '[Media]' : '—'); %>
+
+5. user-management.ejs — u.isActive tidak ada di model User
+ejs<span class="badge badge-sm <%= u.isActive ? 'badge-success' : 'badge-error' %>">
+  <%= u.isActive ? 'Active' : 'Suspended' %>
+</span>
+Model User tidak punya kolom isActive. Badge akan selalu menampilkan "Suspended" dan class badge-error untuk semua user.
+Fix sementara (sampai kolom ditambahkan ke model):
+ejs<span class="badge badge-sm badge-success">Active</span>
+Atau tambahkan kolom isActive ke models/User.js.
+
+6. Route /users/messages/send tidak ada
+partials/dashboard-user/quick-actions.ejs memiliki link:
+html<a href="/users/messages/send" ...>Kirim Test Message</a>
+Route ini tidak terdaftar di routes/user.routes.js maupun controller manapun. Akan menghasilkan 404.
+Fix: Ubah href ke halaman yang ada atau buat route tersebut.
+
+7. Route /admin/users dan /admin/users/new tidak ada
+Sidebar admin (sidebar-admin.ejs) dan beberapa partial (recent-users.ejs, admin-actions.ejs, user-management.ejs) mereferensikan:
+
+href="/admin/users"
+href="/admin/users/new"
+href="/admin/users/<%= u.id %>/edit"
+href="/admin/users/<%= u.id %>/delete"
+
+Tapi di routes/admin.routes.js tidak ada route /admin/users* sama sekali. User management berada di /users/management.
+Fix di routes/admin.routes.js:
+javascriptconst { getUserManagementPage } = require('../controllers/user.controller');
+router.get('/users', ensureAuthenticated, hasRole(['admin']), getUserManagementPage);
+// atau redirect:
+router.get('/users', (req, res) => res.redirect('/users/management'));
+
+8. views/error.ejs — include head partial tanpa DOCTYPE dan <html>
+ejs<%- include('partials/core/head', ...) %>
+<body ...>
+File ini tidak membungkus dengan <!DOCTYPE html><html>...</html>. head.ejs hanya berisi konten dalam <head>, bukan tag-nya sendiri. Halaman error akan render HTML yang tidak valid.
+Fix:
+ejs<!DOCTYPE html>
+<html lang="id" data-theme="wabot">
+<head>
+  <%- include('partials/core/head', { title: 'Error' }) %>
+</head>
+<body ...>
+...
+</body>
+</html>
+
+🟡 Bug Medium
+9. confirm-modal.ejs — onConfirm via CustomEvent tidak bisa kirim fungsi
+ejsonConfirm: () => { window.location.href = '/admin/users/<%= u.id %>/delete' }
+CustomEvent di browser tidak bisa serialisasi fungsi — $event.detail.onConfirm akan selalu undefined karena Alpine.js $dispatch menggunakan CustomEvent yang melewati detail sebagai JSON. Ini menyebabkan tombol konfirmasi di user-management.ejs tidak melakukan apapun.
+Fix: Gunakan pola formId seperti di halaman lain, dengan form hidden per user:
+ejs<form id="delete-user-<%= u.id %>" method="POST" action="/admin/users/<%= u.id %>/delete">
+  <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+</form>
+<button @click="$dispatch('open-confirm-modal', {
+  title: 'Hapus Pengguna',
+  message: '...',
+  confirmLabel: 'Ya, Hapus',
+  formId: 'delete-user-<%= u.id %>'
+})">Hapus</button>
+
+10. sidebar-user.ejs — Dashboard link mengarah ke / bukan /dashboard
+html<a href="/" class="gap-3 rounded-xl font-medium">Dashboard</a>
+/ hanya redirect ke /dashboard jika sudah login — ini akan menambah satu redirect tidak perlu dan bisa menyebabkan active state tidak pernah cocok jika currentPath dicek.
+
+11. views/user-devices.ejs — openSettings() menggunakan modal lama yang tidak support MIME checkboxes
+Halaman user-devices.ejs include partials/_settings-modal.ejs (modal lama non-DaisyUI) dan memanggil window.openSettings() dengan script manual. Modal lama ini tidak memuat mimeTypeList dari server, sehingga MIME type checkboxes tidak akan pernah ter-render (karena tidak ada fetch ke /api/mime-types).
+
+12. admin-dashboard.ejs — Partial system-health menggunakan data hardcoded
+partials/dashboard-admin/system-health.ejs menggunakan array hardcoded jika healthChecks tidak dikirim. Controller admin.controller.js memang tidak mengirim healthChecks, jadi status selalu "ok" meski sistem mungkin bermasalah.
+
+🟢 Minor / Konsistensi
+#LokasiMasalah13topbar-app.ejs"Pengaturan" link mengarah ke /users/profile (duplikat dengan "Profil")14dashboard-user/quick-actions.ejsLink /users/settings tidak ada, harusnya /users/profile15admin-dashboard.ejsauditLogs selalu array kosong, audit feed selalu empty state16user-devices.ejsSocket.IO di-load (loadSocketIO: true) tapi socket dibuat ulang di scripts.ejs — scope socket di scripts.ejs dan di inline script berbeda, berpotensi socket is not defined
+
+Ringkasan Prioritas Fix
+🔴 KRITIS  (layar rusak / fitur tidak jalan)
+  #1  dashboard KPI vars tidak dikirim
+  #3  activity preview pakai field salah
+  #4  messages preview pakai field salah  
+  #5  isActive tidak ada di model
+  #6  route /users/messages/send 404
+  #7  route /admin/users/* 404
+  #8  error.ejs HTML invalid
+
+🟡 MEDIUM  (fitur tidak berfungsi tapi tidak crash)
+  #9  confirm-modal onConfirm tidak bisa kirim fungsi
+  #11 settings modal di user-devices tidak load MIME types
+
+🟢 MINOR   (UX / kosmetik)
+  #10 sidebar href / vs /dashboard
+  #13 topbar duplicate link
+  #14 quick-actions href salah
+  #16 socket scope ambiguity

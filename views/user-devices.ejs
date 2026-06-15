@@ -30,7 +30,7 @@
                 </div>
               </div>
               <% if (device.status === 'connected') { %>
-              <span class="badge badge-success badge-sm shrink-0 gap-1">
+              <span class="badge badge-success badge-sm shrink-0 gap-1" id="status-<%= device.id %>">
                 <span class="w-1.5 h-1.5 rounded-full bg-current"></span>Connected
               </span>
               <% } else if (device.status === 'disconnected') { %>
@@ -128,12 +128,13 @@
         const qrContainer = document.getElementById('qr-container-' + data.accountId);
         const qrImg = document.getElementById('qr-img-' + data.accountId);
         const statusBadge = document.getElementById('status-' + data.accountId);
-        
+
         if (qrContainer && qrImg) {
           qrImg.src = data.qrCode;
           qrContainer.classList.remove('hidden');
         }
         if (statusBadge) {
+          statusBadge.className = 'badge badge-warning badge-sm shrink-0';
           statusBadge.textContent = 'QR Ready';
         }
       });
@@ -141,14 +142,30 @@
       socket.on('status-change', (data) => {
         if (data.status === 'connected') {
           window.location.reload();
+        } else {
+          const statusBadge = document.getElementById('status-' + data.accountId);
+          const qrContainer = document.getElementById('qr-container-' + data.accountId);
+          if (statusBadge) {
+            statusBadge.className = 'badge badge-error badge-sm shrink-0';
+            statusBadge.textContent = 'Disconnected';
+          }
+          if (qrContainer) {
+            qrContainer.classList.add('hidden');
+          }
         }
       });
     }
 
+    // ─── Close buttons untuk DaisyUI dialog ─────────────────────────────────
+    const settingsModal = document.getElementById('settings-modal');
     document.getElementById('close-modal-btn')?.addEventListener('click', () => {
-      document.getElementById('settings-modal').classList.add('hidden');
+      settingsModal?.close();
+    });
+    document.getElementById('cancel-modal-btn')?.addEventListener('click', () => {
+      settingsModal?.close();
     });
 
+    // ─── Generate API Key ─────────────────────────────────────────────────────
     document.getElementById('generate-api-key-btn')?.addEventListener('click', async () => {
       try {
         const res = await fetch('/dashboard/generate-api-key');
@@ -160,10 +177,18 @@
         console.error('Failed to generate API Key:', err);
       }
     });
+
+    // ─── Kumpulkan MIME types yang dicentang sebelum form submit ─────────────
+    document.getElementById('settings-form')?.addEventListener('submit', () => {
+      const checked = Array.from(
+        document.querySelectorAll('#mimeTypeOptions input[type="checkbox"]:checked')
+      ).map(cb => cb.value);
+      document.getElementById('allowedMimeTypes').value = checked.join(',');
+    });
   });
 
-  // Modal logic untuk _settings-modal.ejs diletakkan di luar DOMContentLoaded
-  // agar attribute onclick="" di HTML dapat langsung memanggilnya.
+  // ─── openSettings() — dipanggil via onclick attribute ────────────────────
+  // Harus di luar DOMContentLoaded agar tersedia saat HTML di-parse
   window.openSettings = async function(accountId, accountName) {
     const settingsModal = document.getElementById('settings-modal');
     const settingsForm = document.getElementById('settings-form');
@@ -171,19 +196,60 @@
     const apiKeyInput = document.getElementById('apiKey');
     const maxFileSizeInput = document.getElementById('maxFileSize');
     const mediaContainer = document.getElementById('media-settings-container');
+    const mimeTypeOptionsEl = document.getElementById('mimeTypeOptions');
 
     document.getElementById('modal-account-name').textContent = accountName;
     settingsForm.action = '/dashboard/accounts/settings/' + accountId;
-    settingsModal.classList.remove('hidden');
+
+    // Reset form sebelum buka
+    webhookUrlInput.value = '';
+    apiKeyInput.value = '';
+    if (maxFileSizeInput) maxFileSizeInput.value = '';
+    mimeTypeOptionsEl.innerHTML = '<span class="text-base-content/40 text-xs col-span-2">Memuat...</span>';
+
+    // Buka dialog DaisyUI
+    settingsModal.showModal();
 
     try {
-      const res = await fetch('/dashboard/accounts/' + accountId + '/settings');
-      if (res.ok) {
-        const data = await res.json();
+      // Load settings akun
+      const [settingsRes, mimeRes] = await Promise.all([
+        fetch('/dashboard/accounts/' + accountId + '/settings'),
+        fetch('/api/mime-types'),
+      ]);
+
+      let currentAllowedTypes = [];
+
+      if (settingsRes.ok) {
+        const data = await settingsRes.json();
         webhookUrlInput.value = data.webhookUrl || '';
         apiKeyInput.value = data.apiKey || '';
-        mediaContainer.style.display = data.allowMedia ? 'block' : 'none';
         if (maxFileSizeInput) maxFileSizeInput.value = data.maxFileSize || '';
+        currentAllowedTypes = data.allowedMimeTypes || [];
+
+        // Tampilkan section media hanya jika allowMedia aktif
+        if (data.allowMedia) {
+          mediaContainer.classList.remove('hidden');
+        } else {
+          mediaContainer.classList.add('hidden');
+        }
+      }
+
+      // Render MIME type checkboxes
+      if (mimeRes.ok) {
+        const mimeList = await mimeRes.json();
+        if (Array.isArray(mimeList) && mimeList.length > 0) {
+          mimeTypeOptionsEl.innerHTML = mimeList.map(mime => {
+            const isChecked = currentAllowedTypes.includes(mime);
+            const safeId = mime.replace(/[^a-z0-9]/gi, '-');
+            return `<label class="flex items-center gap-2 cursor-pointer">
+              <input type="checkbox" class="checkbox checkbox-sm checkbox-primary"
+                     id="mime-${safeId}" value="${mime}" ${isChecked ? 'checked' : ''}>
+              <span class="text-xs font-mono">${mime}</span>
+            </label>`;
+          }).join('');
+        } else {
+          mimeTypeOptionsEl.innerHTML = '<span class="text-base-content/40 text-xs col-span-2">Tidak ada tipe file terdaftar.</span>';
+        }
       }
     } catch (err) {
       console.error('Failed to load settings:', err);

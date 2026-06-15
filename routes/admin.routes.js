@@ -3,6 +3,7 @@ const router = express.Router();
 const { ensureAuthenticated, hasRole } = require('../middleware/auth.middleware');
 const { getAdminDashboardPage, deleteAccountAsAdmin, toggleMedia } = require('../controllers/admin.controller');
 const adminPagesController = require('../controllers/adminPages.controller');
+const { getUserManagementPage, updateSessionLimit } = require('../controllers/user.controller');
 
 // ─── Admin dashboard & existing routes ───────────────────────────────────────
 router.get('/', ensureAuthenticated, hasRole(['admin']), getAdminDashboardPage);
@@ -14,5 +15,9 @@ router.get('/devices',          ensureAuthenticated, hasRole(['admin']), adminPa
 router.get('/logs',             ensureAuthenticated, hasRole(['admin']), adminPagesController.getLogs);
 router.get('/settings',         ensureAuthenticated, hasRole(['admin']), adminPagesController.getSettings);
 router.post('/settings',        ensureAuthenticated, hasRole(['admin']), adminPagesController.updateSettings);
+
+// ─── Admin user management (BUG-5: route /admin/users sebelumnya 404) ────────
+router.get('/users',                          ensureAuthenticated, hasRole(['admin']), getUserManagementPage);
+router.post('/users/update-limit/:userId',    ensureAuthenticated, hasRole(['admin']), updateSessionLimit);
 
 module.exports = router;

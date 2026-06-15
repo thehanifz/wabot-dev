@@ -1,0 +1,111 @@
+Sudah cukup data untuk membuat laporan review komprehensif. Saya tulis sekarang.
+
+***
+
+Berikut hasil review lengkap frontend dan routes pada repo [**thehanifz/wabot-dev**](https://github.com/thehanifz/wabot-dev):
+
+***
+
+## 🔴 Bug Kritis
+
+### 1. Delete Device — Route Salah (`/dashboard/accounts/delete/:id`)
+
+Di `views/user-devices.ejs`, form delete device masih mengarah ke route lama:
+
+```html
+<!-- user-devices.ejs baris ~67 -->
+<form id="delete-device-<%= device.id %>"
+      method="POST"
+      action="/dashboard/accounts/delete/<%= device.id %>">
+```
+
+Namun di `admin.routes.js`, route delete account hanya tersedia untuk admin di `/admin/accounts/delete/:accountId`. **Tidak ada route POST `/dashboard/accounts/delete/:id` untuk user biasa**, sehingga klik hapus device oleh user akan selalu **404** .
+
+**Fix:** Tambahkan route `DELETE/POST /users/devices/:id` di `user.routes.js` dan controller `deleteDevice` di `userPages.controller.js`, lalu update action form ke `/users/devices/delete/<%= device.id %>`.
+
+***
+
+### 2. Connect/Disconnect — Route `/dashboard/accounts/connect/:id` Tidak Terverifikasi di User Context
+
+Di `user-devices.ejs` baris connect & disconnect:
+
+```html
+<form method="POST" action="/dashboard/accounts/connect/<%= device.id %>">
+<form method="POST" action="/dashboard/accounts/disconnect/<%= device.id %>">
+```
+
+Route `/dashboard/accounts/connect/:id` tidak terlihat memvalidasi bahwa device tersebut **milik user yang sedang login** — hanya auth login yang dicek. Ini potensi **IDOR** (Insecure Direct Object Reference): user A bisa connect/disconnect device milik user B .
+
+**Fix:** Di controller connect/disconnect, tambahkan validasi `WHERE userId = req.user.id`.
+
+***
+
+### 3. QR Code — `status-` Badge ID Tidak Ada untuk Status `connected`
+
+```ejs
+<% if (device.status === 'connected') { %>
+  <span class="badge badge-success ...">Connected</span>  <!-- ❌ Tidak ada id="status-..." -->
+<% } else { %>
+  <span class="badge ..." id="status-<%= device.id %>">...</span>
+<% } %>
+```
+
+Script Socket.IO di bawah mencoba `document.getElementById('status-' + data.accountId)` — tapi saat status `connected`, elemen ini **tidak memiliki id**, sehingga pembaruan badge via socket akan diam-diam gagal .
+
+**Fix:** Tambahkan `id="status-<%= device.id %>"` pada semua kondisi status, termasuk `connected`.
+
+***
+
+## 🟡 Bug Medium
+
+### 4. `updateProfile` — Email Bisa Diganti Tanpa Validasi Format & Duplikasi
+
+Di `userPages.controller.js`:
+
+```js
+if (email && email.trim()) userData.email = email.trim();
+await userData.save();
+```
+
+Tidak ada validasi format email (regex/validator) dan tidak ada pengecekan apakah email sudah dipakai user lain. Ini bisa menyebabkan **duplikasi email** atau email tidak valid masuk ke DB .
+
+**Fix:** Tambahkan `validator.isEmail(email)` dan `User.findOne({ where: { email, id: { [Op.ne]: req.user.id } } })` sebelum update.
+
+***
+
+### 5. `createDevice` — `sessionId` Bisa Collision Meski Kecil
+
+```js
+const sessionId = `${req.user.id}-${crypto.randomBytes(8).toString('hex')}`;
+```
+
+Tidak ada pengecekan uniqueness di DB sebelum insert. Meski probabilitasnya kecil, tanpa `UNIQUE` constraint atau retry logic, bisa terjadi **constraint error yang tidak di-handle dengan baik** .
+
+**Fix:** Wrap dalam loop dengan `try/catch` untuk regenerate jika duplicate, atau tambahkan `UNIQUE` constraint di model.
+
+***
+
+### 6. `getActivity` — Tidak Ada Pagination, Hardcoded `limit: 50`
+
+```js
+// outgoing & incoming masing-masing limit 50 → feed gabungan dipotong ke 50
+.slice(0, 50)
+```
+
+User dengan banyak aktivitas hanya melihat 50 item terakhir tanpa indikasi ada data lebih banyak, dan tidak ada pagination di view `user-activity.ejs`. Ini adalah **data truncation yang tidak transparan** bagi user .
+
+***
+
+## 🟢 Catatan Minor
+
+| # | Lokasi | Masalah |
+|---|--------|---------|
+| 7 | `user-devices.ejs` | `openSettings()` mengakses route `/dashboard/accounts/:id/settings` — perlu dipastikan route ini validate ownership |
+| 8 | `user-devices.ejs` | `fetch('/dashboard/generate-api-key')` di `openSettings` tidak meneruskan CSRF token |
+| 9 | `user-devices-new.ejs` | Halaman render meski `deviceCount >= sessionLimit`, hanya menampilkan empty-state — bisa lebih baik redirect ke `/users/devices` langsung dengan flash message |
+| 10 | `admin.routes.js` | Tidak ada route untuk `GET /admin/user-management` — fitur ini ada di `user.routes.js` (`/management`) dengan `hasRole(['admin'])`, sudah benar, tapi naming-nya sedikit membingungkan karena berada di `/users/management` bukan `/admin/users` |
+| 11 | `server.js` | `'unsafe-eval'` di CSP `script-src` untuk Alpine.js v3 sebenarnya **tidak diperlukan** sejak Alpine v3.4+ — bisa dihapus untuk meningkatkan keamanan CSP |
+
+***
+
+Mau saya lanjut ke fix mana dulu, atau mau saya buatkan PR dengan patch untuk bug-bug di atas?
