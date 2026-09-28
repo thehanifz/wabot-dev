@@ -15,6 +15,7 @@ const logger = require('../config/logger');
 const { emitSocketEvent, emitToUser } = require('./socket.service');
 
 const sessions = new Map();
+const connectionsInProgress = new Set();
 const SESSIONS_DIR = path.join(__dirname, '..', 'whatsapp-sessions');
 
 const reconnectionAttempts = new Map();
@@ -55,20 +56,31 @@ class BaileysService {
 
     static async connect(accountId, isRestore = false) {
         const normalizedAccountId = parseAccountId(accountId);
+
+        if (sessions.has(normalizedAccountId)) {
+            logger.warn(`Sesi untuk akun ${normalizedAccountId} sudah berjalan atau sedang terhubung, permintaan koneksi diabaikan.`);
+            return;
+        }
+
+        if (connectionsInProgress.has(normalizedAccountId)) {
+            logger.warn(`Koneksi untuk akun ${normalizedAccountId} sedang disiapkan, permintaan duplikat diabaikan.`);
+            return;
+        }
+
+        connectionsInProgress.add(normalizedAccountId);
+        try {
+            return await this.createSocket(normalizedAccountId, isRestore);
+        } finally {
+            connectionsInProgress.delete(normalizedAccountId);
+        }
+    }
+
+    static async createSocket(normalizedAccountId, isRestore = false) {
         const sessionDir = resolveSessionDir(normalizedAccountId);
 
-        if (!isRestore && fs.existsSync(sessionDir)) {
-            logger.info(`Membersihkan sesi lama untuk akun ${normalizedAccountId} sebelum mencoba koneksi baru.`);
-            fs.rmSync(sessionDir, { recursive: true, force: true });
-        }
-
+        // Keep existing credentials; a fresh socket should not invalidate a live session.
         if (!fs.existsSync(sessionDir)) {
             fs.mkdirSync(sessionDir, { recursive: true });
-        }
-
-        if (sessions.has(normalizedAccountId) && sessions.get(normalizedAccountId)?.ws?.isOpen) {
-            logger.warn(`Sesi untuk akun ${normalizedAccountId} sudah berjalan, permintaan koneksi diabaikan.`);
-            return;
         }
 
         const { state, saveCreds } = await useMultiFileAuthState(sessionDir);
@@ -90,6 +102,10 @@ class BaileysService {
 
         sock.ev.on('connection.update', async (update) => {
             const { connection, lastDisconnect } = update;
+
+            if (connection === 'close' && sessions.get(normalizedAccountId) === sock) {
+                sessions.delete(normalizedAccountId);
+            }
 
             await handleConnectionUpdate(update, sock, normalizedAccountId, sessionDir, emitToUser);
 

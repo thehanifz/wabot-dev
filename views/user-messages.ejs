@@ -25,7 +25,7 @@
                 <option value="pending" <%= filterStatus === 'pending' ? 'selected' : '' %>>Pending</option>
               </select>
             </form>
-            <div class="ml-auto text-xs text-base-content/40 self-center">
+            <div class="ml-auto text-xs text-base-content/50 self-center">
               <%= totalCount %> pesan ditemukan
             </div>
           </div>
@@ -73,16 +73,37 @@
           </div>
 
           <!-- Pagination -->
-          <% if (totalPages > 1) { %>
-          <div class="flex justify-center mt-5">
-            <div class="join">
-              <% for (let i = 1; i <= totalPages; i++) { %>
-              <a href="/users/messages?page=<%= i %>&status=<%= filterStatus %>"
-                 class="join-item btn btn-sm <%= currentPage === i ? 'btn-active' : 'btn-ghost' %>">
-                <%= i %>
-              </a>
+          <% if (totalCount > 0) { %>
+          <div class="mt-5 flex flex-col gap-3 border-t border-base-200 pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <p class="text-xs text-base-content/55">
+              Menampilkan <span class="font-semibold text-base-content/75"><%= (currentPage - 1) * pageSize + 1 %>–<%= Math.min(currentPage * pageSize, totalCount) %></span>
+              dari <span class="font-semibold text-base-content/75"><%= totalCount %></span> pesan
+            </p>
+            <% if (totalPages > 1) { %>
+            <nav class="join mx-auto sm:mx-0" aria-label="Navigasi halaman pesan">
+              <% if (currentPage > 1) { %>
+              <a href="/users/messages?page=<%= currentPage - 1 %>&status=<%= encodeURIComponent(filterStatus) %>"
+                 class="join-item btn btn-sm btn-ghost" aria-label="Halaman sebelumnya" title="Sebelumnya">‹</a>
+              <% } else { %>
+              <span class="join-item btn btn-sm btn-ghost btn-disabled" aria-hidden="true">‹</span>
               <% } %>
-            </div>
+              <% paginationPages.forEach(item => { %>
+                <% if (item === 'ellipsis') { %>
+                <span class="join-item btn btn-sm btn-ghost btn-disabled px-2" aria-hidden="true">…</span>
+                <% } else { %>
+                <a href="/users/messages?page=<%= item %>&status=<%= encodeURIComponent(filterStatus) %>"
+                   class="join-item btn btn-sm <%= currentPage === item ? 'btn-primary' : 'btn-ghost' %>"
+                   <% if (currentPage === item) { %>aria-current="page"<% } %>><%= item %></a>
+                <% } %>
+              <% }) %>
+              <% if (currentPage < totalPages) { %>
+              <a href="/users/messages?page=<%= currentPage + 1 %>&status=<%= encodeURIComponent(filterStatus) %>"
+                 class="join-item btn btn-sm btn-ghost" aria-label="Halaman berikutnya" title="Berikutnya">›</a>
+              <% } else { %>
+              <span class="join-item btn btn-sm btn-ghost btn-disabled" aria-hidden="true">›</span>
+              <% } %>
+            </nav>
+            <% } %>
           </div>
           <% } %>
 

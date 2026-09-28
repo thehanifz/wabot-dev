@@ -93,8 +93,9 @@ exports.createDevice = async (req, res, next) => {
 // ─── GET /users/messages ──────────────────────────────────────────────────────
 exports.getMessages = async (req, res, next) => {
   try {
-    const page = Math.max(1, parseInt(req.query.page) || 1);
-    const status = req.query.status || '';
+    const requestedPage = Math.max(1, parseInt(req.query.page, 10) || 1);
+    const requestedStatus = req.query.status || '';
+    const status = ['pending', 'sent', 'failed'].includes(requestedStatus) ? requestedStatus : '';
 
     const userAccounts = await WhatsAppAccount.findAll({
       where: { userId: req.user.id },
@@ -103,11 +104,12 @@ exports.getMessages = async (req, res, next) => {
     const accountIds = userAccounts.map(a => a.id);
 
     const where = { accountId: { [Op.in]: accountIds } };
-    if (status && ['pending', 'sent', 'failed'].includes(status)) {
-      where.status = status;
-    }
+    if (status) where.status = status;
 
-    const { count, rows: outgoingMessages } = await OutgoingMessage.findAndCountAll({
+    const count = await OutgoingMessage.count({ where });
+    const totalPages = Math.ceil(count / PAGE_SIZE);
+    const page = totalPages ? Math.min(requestedPage, totalPages) : 1;
+    const outgoingMessages = await OutgoingMessage.findAll({
       where,
       include: [{ model: WhatsAppAccount, attributes: ['name', 'sessionId'] }],
       order: [['createdAt', 'DESC']],
@@ -115,13 +117,24 @@ exports.getMessages = async (req, res, next) => {
       offset: (page - 1) * PAGE_SIZE
     });
 
+    const paginationPages = [];
+    const visiblePages = [...new Set([1, page - 1, page, page + 1, totalPages])]
+      .filter(number => number >= 1 && number <= totalPages)
+      .sort((a, b) => a - b);
+    visiblePages.forEach((number, index) => {
+      if (index > 0 && number - visiblePages[index - 1] > 1) paginationPages.push('ellipsis');
+      paginationPages.push(number);
+    });
+
     res.render('user-messages', {
       title: 'Messages',
       user: req.user,
       outgoingMessages,
       currentPage: page,
-      totalPages: Math.ceil(count / PAGE_SIZE),
+      totalPages,
       totalCount: count,
+      pageSize: PAGE_SIZE,
+      paginationPages,
       filterStatus: status,
       csrfToken: req.csrfToken(),
       messages: req.flash()

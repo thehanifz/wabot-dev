@@ -20,6 +20,7 @@ const { startQueueWorker } = require('./services/queue.service');
 const { apiLimiter } = require('./middleware/rateLimiter.middleware');
 const { initSettings } = require('./services/setting.service');
 const { waitForDatabaseReady } = require('./services/db-health-check.service');
+const { startMessageLogCleanup } = require('./services/message-retention.service');
 
 const app = express();
 const server = http.createServer(app);
@@ -282,6 +283,7 @@ waitForDatabaseReady(sequelize).then(() => sequelize.sync({ alter: true })).then
     }
 
     cleanupOldFiles();
+    startMessageLogCleanup();
 
     server.listen(PORT, async () => {
         logger.info(`🚀 Server berjalan di http://localhost:${PORT}`);
