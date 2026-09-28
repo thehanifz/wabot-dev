@@ -4,25 +4,7 @@ const crypto = require('crypto');
 const net = require('net');
 const BaileysService = require('../services/baileys.service');
 const CryptoService = require('../services/crypto.service');
-
-// Fungsi helper untuk generate Session ID
-const generateSessionId = async () => {
-    const date = new Date();
-    const year = date.getFullYear().toString().slice(-2);
-    const month = (date.getMonth() + 1).toString().padStart(2, '0');
-
-    let sessionId;
-    let isUnique = false;
-    while (!isUnique) {
-        const randomStr = crypto.randomBytes(2).toString('hex').toUpperCase();
-        sessionId = `${year}${month}${randomStr}`;
-        const existingAccount = await WhatsAppAccount.findOne({ where: { sessionId } });
-        if (!existingAccount) {
-            isUnique = true;
-        }
-    }
-    return sessionId;
-};
+const { generateSessionId } = require('../services/session-id.service');
 
 const parseAccountId = (rawAccountId) => {
     if (!/^\d+$/.test(String(rawAccountId))) {

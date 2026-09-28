@@ -2,7 +2,7 @@
 const { WhatsAppAccount, OutgoingMessage, Message, User } = require('../models');
 const { Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
-const crypto = require('crypto');
+const { generateSessionId } = require('../services/session-id.service');
 const logger = require('../config/logger');
 const PAGE_SIZE = 20;
 
@@ -70,8 +70,7 @@ exports.createDevice = async (req, res, next) => {
       return res.redirect('/users/devices/new');
     }
 
-    // Generate sessionId unik
-    const sessionId = `${req.user.id}-${crypto.randomBytes(8).toString('hex')}`;
+    const sessionId = await generateSessionId();
 
     await WhatsAppAccount.create({
       userId: req.user.id,
