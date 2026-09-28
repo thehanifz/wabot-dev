@@ -17,13 +17,25 @@ const initSocket = (socketInstance) => {
             return;
         }
 
-        if (!userSockets.has(userId)) {
-            userSockets.set(userId, new Set());
+        const socketUserId = String(userId);
+        if (!userSockets.has(socketUserId)) {
+            userSockets.set(socketUserId, new Set());
         }
-        userSockets.get(userId).add(socket.id);
-        socket.userId = userId;
+        userSockets.get(socketUserId).add(socket.id);
+        socket.userId = socketUserId;
 
         logger.info(`[SOCKET] Socket ${socket.id} terotentikasi untuk userId ${userId}`);
+
+        // Replay the persisted device status so a QR emitted before this socket connected is not lost.
+        const { WhatsAppAccount } = require('../models');
+        WhatsAppAccount.findAll({
+            where: { userId },
+            attributes: ['id', 'status', 'qrCode']
+        }).then(devices => {
+            if (socket.connected) {
+                socket.emit('device-states', devices.map(({ id, status, qrCode }) => ({ id, status, qrCode })));
+            }
+        }).catch(error => logger.error('[SOCKET] Gagal mengirim status device awal:', error));
 
         socket.on('authenticate', (claimedUserId) => {
             if (claimedUserId && String(claimedUserId) !== String(socket.userId)) {
@@ -35,11 +47,11 @@ const initSocket = (socketInstance) => {
         socket.on('disconnect', () => {
             logger.info(`[SOCKET] Socket ${socket.id} terputus (userId: ${socket.userId})`);
             if (socket.userId) {
-                const userSocketSet = userSockets.get(socket.userId);
+                const userSocketSet = userSockets.get(String(socket.userId));
                 if (userSocketSet) {
                     userSocketSet.delete(socket.id);
                     if (userSocketSet.size === 0) {
-                        userSockets.delete(socket.userId);
+                        userSockets.delete(String(socket.userId));
                     }
                 }
             }
@@ -62,7 +74,7 @@ const emitSocketEvent = (eventName, data) => {
 
 const emitToUser = (userId, eventName, data) => {
     try {
-        const socketIds = userSockets.get(userId);
+        const socketIds = userSockets.get(String(userId));
         logger.info(`[SOCKET] emitToUser: userId=${userId}, event=${eventName}, count=${socketIds?.size || 0}`);
 
         if (socketIds && socketIds.size > 0) {

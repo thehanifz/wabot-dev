@@ -54,21 +54,18 @@
             </div>
 
             <div class="mt-3 flex gap-2">
-              <% if (device.status !== 'connected') { %>
-              <form method="POST" action="/dashboard/accounts/connect/<%= device.id %>" class="flex-1">
+              <form id="connect-form-<%= device.id %>" method="POST" action="/dashboard/accounts/connect/<%= device.id %>" class="flex-1 <%= device.status === 'connected' || device.status === 'connecting' || device.status === 'qr-code' ? 'hidden' : '' %>">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button class="btn btn-success btn-sm w-full gap-1">
+                <button id="connect-button-<%= device.id %>" class="btn btn-success btn-sm w-full gap-1">
                   <i data-lucide="plug" class="w-3.5 h-3.5"></i> Connect
                 </button>
               </form>
-              <% } else { %>
-              <form method="POST" action="/dashboard/accounts/disconnect/<%= device.id %>" class="flex-1">
+              <form id="disconnect-form-<%= device.id %>" method="POST" action="/dashboard/accounts/disconnect/<%= device.id %>" class="flex-1 <%= device.status === 'connected' ? '' : 'hidden' %>">
                 <input type="hidden" name="_csrf" value="<%= csrfToken %>">
-                <button class="btn btn-outline btn-sm w-full gap-1">
+                <button type="button" class="btn btn-outline btn-sm w-full gap-1" data-account-id="<%= device.id %>" data-account-name="<%= device.name %>" onclick="confirmDisconnect(this)">
                   <i data-lucide="plug-zap" class="w-3.5 h-3.5"></i> Disconnect
                 </button>
               </form>
-              <% } %>
 
               <button
                 type="button"
@@ -132,38 +129,71 @@
     }));
   };
 
-  // Script untuk Socket.IO QR Code & Status
+  window.confirmDisconnect = function(button) {
+    const accountId = button.dataset.accountId;
+    const accountName = button.dataset.accountName;
+    window.dispatchEvent(new CustomEvent('open-confirm-modal', {
+      detail: {
+        title: 'Disconnect Device',
+        message: 'Yakin ingin memutuskan koneksi WhatsApp "' + accountName + '"?',
+        confirmLabel: 'Ya',
+        cancelLabel: 'Tidak',
+        formId: 'disconnect-form-' + accountId
+      }
+    }));
+  };
+
+  const setDeviceState = (accountId, status, qrCode) => {
+    const badge = document.getElementById('status-' + accountId);
+    const qrContainer = document.getElementById('qr-container-' + accountId);
+    const qrImg = document.getElementById('qr-img-' + accountId);
+    const connectForm = document.getElementById('connect-form-' + accountId);
+    const disconnectForm = document.getElementById('disconnect-form-' + accountId);
+    const connectButton = document.getElementById('connect-button-' + accountId);
+
+    if (badge) {
+      const states = {
+        connected: ['badge badge-success badge-sm shrink-0 gap-1', '● Connected'],
+        connecting: ['badge badge-warning badge-sm shrink-0', 'Menghubungkan…'],
+        'qr-code': ['badge badge-warning badge-sm shrink-0', 'QR siap'],
+        disconnected: ['badge badge-error badge-sm shrink-0', 'Disconnected']
+      };
+      const [className, label] = states[status] || ['badge badge-ghost badge-sm shrink-0', status];
+      badge.className = className;
+      badge.textContent = label;
+    }
+
+    if (status === 'connected') {
+      qrContainer?.classList.add('hidden');
+      if (connectForm) connectForm.classList.add('hidden');
+      if (disconnectForm) disconnectForm.classList.remove('hidden');
+      return;
+    }
+
+    if (status === 'qr-code' && qrCode && qrContainer && qrImg) {
+      qrImg.src = qrCode;
+      qrContainer.classList.remove('hidden');
+    } else if (status === 'disconnected') {
+      qrContainer?.classList.add('hidden');
+    }
+
+    if (status === 'connecting' || status === 'qr-code') {
+      if (connectForm) connectForm.classList.add('hidden');
+      if (disconnectForm) disconnectForm.classList.add('hidden');
+    } else {
+      if (connectForm) connectForm.classList.remove('hidden');
+      if (disconnectForm) disconnectForm.classList.add('hidden');
+    }
+    if (connectButton) connectButton.disabled = status === 'connecting' || status === 'qr-code';
+  };
+
+  // Update QR and status in place; the server replays current state on socket connect.
   document.addEventListener('DOMContentLoaded', () => {
     if (typeof socket !== 'undefined') {
-      socket.on('qr-code', (data) => {
-        const qrContainer = document.getElementById('qr-container-' + data.accountId);
-        const qrImg = document.getElementById('qr-img-' + data.accountId);
-        const statusBadge = document.getElementById('status-' + data.accountId);
-
-        if (qrContainer && qrImg) {
-          qrImg.src = data.qrCode;
-          qrContainer.classList.remove('hidden');
-        }
-        if (statusBadge) {
-          statusBadge.className = 'badge badge-warning badge-sm shrink-0';
-          statusBadge.textContent = 'QR Ready';
-        }
-      });
-
-      socket.on('status-change', (data) => {
-        if (data.status === 'connected') {
-          window.location.reload();
-        } else {
-          const statusBadge = document.getElementById('status-' + data.accountId);
-          const qrContainer = document.getElementById('qr-container-' + data.accountId);
-          if (statusBadge) {
-            statusBadge.className = 'badge badge-error badge-sm shrink-0';
-            statusBadge.textContent = 'Disconnected';
-          }
-          if (qrContainer) {
-            qrContainer.classList.add('hidden');
-          }
-        }
+      socket.on('qr-code', data => setDeviceState(data.accountId, 'qr-code', data.qrCode));
+      socket.on('status-change', data => setDeviceState(data.accountId, data.status));
+      socket.on('device-states', devices => {
+        devices.forEach(device => setDeviceState(device.id, device.status, device.qrCode));
       });
     }
 

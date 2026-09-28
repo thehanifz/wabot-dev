@@ -23,7 +23,7 @@
       </div>
     </div>
     <div class="flex justify-end gap-2 mt-6">
-      <button class="btn btn-ghost btn-sm" @click="close()">Batal</button>
+      <button class="btn btn-ghost btn-sm" @click="close()" x-text="cancelLabel"></button>
       <button
         class="btn btn-error btn-sm"
         @click="confirm()"
@@ -40,12 +40,14 @@
       title: '',
       message: '',
       confirmLabel: 'Ya, lanjutkan',
+      cancelLabel: 'Batal',
       onConfirm: null,
       formId: null,
-      openModal({ title, message, confirmLabel, onConfirm, formId }) {
+      openModal({ title, message, confirmLabel, cancelLabel, onConfirm, formId }) {
         this.title = title || 'Konfirmasi';
         this.message = message || 'Apakah Anda yakin?';
         this.confirmLabel = confirmLabel || 'Ya, lanjutkan';
+        this.cancelLabel = cancelLabel || 'Batal';
         this.onConfirm = onConfirm || null;
         this.formId = formId || null;
         this.open = true;

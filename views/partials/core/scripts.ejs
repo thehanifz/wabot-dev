@@ -11,7 +11,7 @@
 <% if (typeof loadSocketIO !== 'undefined' && loadSocketIO) { %>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-  const socket = io({ transports: ['websocket'], upgrade: false });
+  const socket = io();
   socket.on('connect', () => console.log('[Socket] Connected:', socket.id));
   socket.on('disconnect', () => console.warn('[Socket] Disconnected'));
 </script>
